@@ -1,0 +1,23 @@
+# Django core
+Django>=5.0,<6.0
+djangorestframework>=3.15
+djangorestframework-simplejwt>=5.3
+django-cors-headers>=4.3
+django-filter>=23.5
+django-ratelimit>=4.1
+
+# Database
+psycopg2-binary>=2.9
+
+# Celery
+celery>=5.3
+redis>=5.0
+django-celery-beat>=2.6
+
+# Export
+openpyxl>=3.1
+weasyprint>=62.0
+Pillow>=10.0
+
+# Utilities
+python-decouple>=3.8
