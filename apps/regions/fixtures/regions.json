@@ -1,0 +1,254 @@
+[
+  {
+    "model": "regions.region",
+    "pk": 1,
+    "fields": {
+      "code": "03xx",
+      "name_ru": "ДГД по Акмолинской области",
+      "name_kz": "Ақмола облысы бойынша МКД",
+      "name_en": "STD for Akmola Region",
+      "is_summary": false,
+      "order": 1
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 2,
+    "fields": {
+      "code": "06xx",
+      "name_ru": "ДГД по Актюбинской области",
+      "name_kz": "Ақтөбе облысы бойынша МКД",
+      "name_en": "STD for Aktobe Region",
+      "is_summary": false,
+      "order": 2
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 3,
+    "fields": {
+      "code": "09xx",
+      "name_ru": "ДГД по Алматинской области",
+      "name_kz": "Алматы облысы бойынша МКД",
+      "name_en": "STD for Almaty Region",
+      "is_summary": false,
+      "order": 3
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 4,
+    "fields": {
+      "code": "15xx",
+      "name_ru": "ДГД по Атырауской области",
+      "name_kz": "Атырау облысы бойынша МКД",
+      "name_en": "STD for Atyrau Region",
+      "is_summary": false,
+      "order": 4
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 5,
+    "fields": {
+      "code": "18xx",
+      "name_ru": "ДГД по Восточно-Казахстанской области",
+      "name_kz": "Шығыс Қазақстан облысы бойынша МКД",
+      "name_en": "STD for East Kazakhstan Region",
+      "is_summary": false,
+      "order": 5
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 6,
+    "fields": {
+      "code": "60xx",
+      "name_ru": "ДГД по г. Алматы",
+      "name_kz": "Алматы қ. бойынша МКД",
+      "name_en": "STD for Almaty City",
+      "is_summary": false,
+      "order": 6
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 7,
+    "fields": {
+      "code": "62xx",
+      "name_ru": "ДГД по г. Астана",
+      "name_kz": "Астана қ. бойынша МКД",
+      "name_en": "STD for Astana City",
+      "is_summary": false,
+      "order": 7
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 8,
+    "fields": {
+      "code": "59xx",
+      "name_ru": "ДГД по г. Шымкент",
+      "name_kz": "Шымкент қ. бойынша МКД",
+      "name_en": "STD for Shymkent City",
+      "is_summary": false,
+      "order": 8
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 9,
+    "fields": {
+      "code": "21xx",
+      "name_ru": "ДГД по Жамбылской области",
+      "name_kz": "Жамбыл облысы бойынша МКД",
+      "name_en": "STD for Zhambyl Region",
+      "is_summary": false,
+      "order": 9
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 10,
+    "fields": {
+      "code": "27xx",
+      "name_ru": "ДГД по Западно-Казахстанской области",
+      "name_kz": "Батыс Қазақстан облысы бойынша МКД",
+      "name_en": "STD for West Kazakhstan Region",
+      "is_summary": false,
+      "order": 10
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 11,
+    "fields": {
+      "code": "30xx",
+      "name_ru": "ДГД по Карагандинской области",
+      "name_kz": "Қарағанды облысы бойынша МКД",
+      "name_en": "STD for Karaganda Region",
+      "is_summary": false,
+      "order": 11
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 12,
+    "fields": {
+      "code": "39xx",
+      "name_ru": "ДГД по Костанайской области",
+      "name_kz": "Қостанай облысы бойынша МКД",
+      "name_en": "STD for Kostanay Region",
+      "is_summary": false,
+      "order": 12
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 13,
+    "fields": {
+      "code": "33xx",
+      "name_ru": "ДГД по Кызылординской области",
+      "name_kz": "Қызылорда облысы бойынша МКД",
+      "name_en": "STD for Kyzylorda Region",
+      "is_summary": false,
+      "order": 13
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 14,
+    "fields": {
+      "code": "43xx",
+      "name_ru": "ДГД по Мангистауской области",
+      "name_kz": "Маңғыстау облысы бойынша МКД",
+      "name_en": "STD for Mangystau Region",
+      "is_summary": false,
+      "order": 14
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 15,
+    "fields": {
+      "code": "71xx",
+      "name_ru": "ДГД по Области Абай",
+      "name_kz": "Абай облысы бойынша МКД",
+      "name_en": "STD for Abay Region",
+      "is_summary": false,
+      "order": 15
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 16,
+    "fields": {
+      "code": "70xx",
+      "name_ru": "ДГД по Области Жетісу",
+      "name_kz": "Жетісу облысы бойынша МКД",
+      "name_en": "STD for Zhetysu Region",
+      "is_summary": false,
+      "order": 16
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 17,
+    "fields": {
+      "code": "72xx",
+      "name_ru": "ДГД по Области Ұлытау",
+      "name_kz": "Ұлытау облысы бойынша МКД",
+      "name_en": "STD for Ulytau Region",
+      "is_summary": false,
+      "order": 17
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 18,
+    "fields": {
+      "code": "45xx",
+      "name_ru": "ДГД по Павлодарской области",
+      "name_kz": "Павлодар облысы бойынша МКД",
+      "name_en": "STD for Pavlodar Region",
+      "is_summary": false,
+      "order": 18
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 19,
+    "fields": {
+      "code": "48xx",
+      "name_ru": "ДГД по Северо-Казахстанской области",
+      "name_kz": "Солтүстік Қазақстан облысы бойынша МКД",
+      "name_en": "STD for North Kazakhstan Region",
+      "is_summary": false,
+      "order": 19
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 20,
+    "fields": {
+      "code": "58xx",
+      "name_ru": "ДГД по Туркестанской области",
+      "name_kz": "Түркістан облысы бойынша МКД",
+      "name_en": "STD for Turkestan Region",
+      "is_summary": false,
+      "order": 20
+    }
+  },
+  {
+    "model": "regions.region",
+    "pk": 21,
+    "fields": {
+      "code": "00xx",
+      "name_ru": "КГД (итого по РК)",
+      "name_kz": "ҚМД (ҚР бойынша жиынтық)",
+      "name_en": "State Revenue Committee (total)",
+      "is_summary": true,
+      "order": 21
+    }
+  }
+]
