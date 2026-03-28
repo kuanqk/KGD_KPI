@@ -3,6 +3,7 @@
 > Каждый спринт = одна задача для Claude Code.
 > Перед каждой задачей Claude Code читает `claude.md` (бизнес-логика) и `docs/DEV.md` (архитектура).
 > Поля БД пока условные — заменить после получения schema от Олжаса.
+> **Правило:** не запускать команды в промптах — миграции и тесты разработчик выполняет локально.
 
 ---
 
@@ -32,98 +33,35 @@
 
 ---
 
-## Спринт 0 — Инициализация проекта
+## Контрольные точки для локального запуска
 
-**Промпт для Claude Code:**
-```
-Прочитай claude.md и docs/DEV.md.
-
-Инициализируй Django-проект kgd_kpi со следующей структурой:
-
-1. Django-проект в папке config/ (не в корне)
-2. Создай apps: core, regions, etl, kpi, reports — каждый через startapp
-3. Настрой config/settings/base.py:
-   - INSTALLED_APPS со всеми apps
-   - Кастомная модель пользователя: AUTH_USER_MODEL = 'core.User'
-   - REST_FRAMEWORK настройки (JWT аутентификация, pagination)
-   - CELERY_BROKER_URL из env
-   - LANGUAGE_CODE = 'ru-ru', поддержка i18n (ru, kk, en)
-   - CORS настройки для Vue фронта
-4. config/settings/dev.py — DEBUG=True, PostgreSQL из env
-5. config/settings/prod.py — DEBUG=False, HTTPS, HSTS
-6. config/celery.py — Celery app
-7. requirements.txt:
-   django>=5.0, djangorestframework, djangorestframework-simplejwt,
-   django-cors-headers, celery, redis, psycopg2-binary,
-   openpyxl, weasyprint, django-filter, django-ratelimit, Pillow
-8. docker-compose.yml: web, db, redis, worker, beat, nginx
-9. Dockerfile для Django
-10. .env.example с переменными из DEV.md раздел 5
-11. manage.py в корне
-12. .gitignore
-
-Структура папок должна точно совпадать с docs/DEV.md раздел 1.
-```
+| После спринта | Что проверяем |
+|---|---|
+| **3** | `docker compose up`, Django Admin, миграции |
+| **7** | API через Postman, JWT, роли |
+| **9** | Браузер, карта, дашборд |
+| **17** | Полный прогон, все фичи |
 
 ---
 
-## Спринт 1 — Модели: core + regions
+## Спринт 0 — Инициализация проекта ✅
 
-**Промпт для Claude Code:**
-```
-Прочитай claude.md и docs/DEV.md.
-
-Реализуй модели для apps/core и apps/regions строго по docs/DEV.md раздел 2.1 и 2.2.
-
-apps/core/models.py:
-- User (AbstractUser) с полем role и mac_address
-- UserRegion (M2M связь User ↔ Region)
-- AuditLog со всеми типами событий из DEV.md
-
-apps/core/mixins.py:
-- RegionScopedQuerySet
-- RegionScopedMixin
-
-apps/regions/models.py:
-- Region с полями: code, name_ru, name_kz, name_en, is_summary, order
-
-apps/regions/fixtures/regions.json:
-- Все 20 ДГД + КГД из справочника в claude.md
-- is_summary=True только для КГД
-
-apps/core/admin.py — зарегистрировать User, AuditLog
-apps/regions/admin.py — зарегистрировать Region
-
-Создай и примени миграции.
-Напиши тесты в apps/core/tests/ и apps/regions/tests/.
-```
+Выполнен. Создана структура проекта, Docker Compose, settings, requirements.txt.
 
 ---
 
-## Спринт 2 — Модели: etl
+## Спринт 1 — Модели: core + regions ✅
 
-**Промпт для Claude Code:**
-```
-Прочитай claude.md и docs/DEV.md.
+Выполнен. 29/29 тестов OK.
+- User, UserRegion, AuditLog, RegionScopedQuerySet/Mixin
+- Region, фикстура 20 ДГД + КГД
 
-Реализуй модели для apps/etl строго по docs/DEV.md раздел 2.3.
+---
 
-Модели:
-- ImportJob
-- CompletedInspection (с индексами)
-- ActiveInspection
-- AppealDecision
-- ManualInput
+## Спринт 2 — Модели: etl ✅
 
-Важно:
-- Все суммы хранить в BigIntegerField (тенге, целые)
-- Индексы как в DEV.md
-- unique_together ('source', 'source_id') для исходных данных
-
-apps/etl/admin.py — зарегистрировать все модели с list_display
-Создай и примени миграции.
-Напиши базовые тесты в apps/etl/tests/test_models.py.
-```
+Выполнен. 32/32 тестов OK.
+- ImportJob, CompletedInspection, ActiveInspection, AppealDecision, ManualInput
 
 ---
 
@@ -131,9 +69,9 @@ apps/etl/admin.py — зарегистрировать все модели с li
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md и docs/DEV.md.
+Прочитай claude.md и docs/DEV.md (раздел 2.4 и 2.5).
 
-Реализуй модели для apps/kpi и apps/reports строго по docs/DEV.md раздел 2.4 и 2.5.
+Реализуй Спринт 3: модели kpi + reports.
 
 apps/kpi/models.py:
 - KPIFormula с методом get_active(kpi_type)
@@ -146,12 +84,13 @@ apps/reports/models.py:
 apps/kpi/admin.py — KPIFormula, KPIResult, KPISummary
 apps/reports/admin.py — ReportApproval
 
-Создай и примени миграции.
-Напиши тесты в apps/kpi/tests/test_models.py.
+Создай миграции.
 
-Добавь management command: python manage.py init_formulas
-— создаёт начальные KPIFormula (версия 1) для всех 6 KPI
+management command: apps/kpi/management/commands/init_formulas.py
+— создаёт KPIFormula версия 1 для всех 6 KPI
 с конфигурацией порогов из claude.md.
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -160,30 +99,30 @@ apps/reports/admin.py — ReportApproval
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md и docs/DEV.md.
+Прочитай claude.md и docs/DEV.md (раздел 2.3, сервисный слой).
 
-Реализуй ETL-сервисный слой в apps/etl/services/.
+Реализуй Спринт 4: ETL сервисный слой.
 
 apps/etl/services/normalizer.py:
 - Класс DataNormalizer
-- Метод normalize_completed_inspection(raw_row: dict) → CompletedInspection
-  Логика маршрутизации: если запись.дата < 09.07.2025 → source='inis', иначе source='isna'
-  Условные поля маппить согласно таблице в claude.md раздел "Условные поля БД"
-- Метод normalize_active_inspection(raw_row: dict) → ActiveInspection
-- Метод normalize_appeal(raw_row: dict) → AppealDecision
+- normalize_completed_inspection(raw_row: dict) → CompletedInspection
+  Маршрутизация: дата < 09.07.2025 → source='inis', иначе source='isna'
+  Маппинг условных полей согласно таблице в claude.md раздел "Условные поля БД"
+- normalize_active_inspection(raw_row: dict) → ActiveInspection
+- normalize_appeal(raw_row: dict) → AppealDecision
 
 apps/etl/services/importer.py:
 - Класс KGDImporter
 - __init__(self, job: ImportJob)
 - run() → запускает импорт, обновляет ImportJob.status
-- _fetch_from_kgd_db() → подключение к внешней БД КГД через env KGD_DB_*
-  (пока: заглушка, возвращает тестовые данные)
-- _bulk_create(records) → batch insert с обработкой дубликатов
+- _fetch_from_kgd_db() → заглушка, возвращает тестовые данные
+  (реальное подключение — в Спринте 18 после получения schema)
+- _bulk_create(records) → batch insert с обработкой дубликатов (ignore_conflicts)
 
 apps/etl/tasks.py:
-- run_import_job(job_id) — Celery задача, вызывает KGDImporter
+- run_import_job(job_id) — Celery задача, вызывает KGDImporter, max_retries=3
 
-Напиши тесты в apps/etl/tests/test_services.py с mock данными.
+Не запускай команды. Только создай/izmeni файлы.
 ```
 
 ---
@@ -192,7 +131,7 @@ apps/etl/tasks.py:
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md и docs/DEV.md. Это центральный спринт — KPI Engine.
+Прочитай claude.md и docs/DEV.md (раздел 2.4, KPI Engine). Это центральный спринт.
 
 Реализуй apps/kpi/services/engine.py — класс KPIEngine.
 
@@ -202,47 +141,46 @@ calc_assessment(region) → KPIResult  [KPI 1]
   - Факт: SUM(amount_assessed) из CompletedInspection
     WHERE region=region, management='УНА', completed_date IN [date_from, date_to]
   - KPI_план: ManualInput.kbk_share_pct * общий план * 1.20
-  - Баллы: ≥100%→10, ≥90%→5, <90%→0
+  - Баллы: >=100%->10, >=90%->5, <90%->0
 
 calc_collection(region) → KPIResult  [KPI 2]
-  - Факт: SUM(amount_collected) WHERE + is_accepted=True
-  - Баллы: ≥100%→40, ≥90%→20, ≥80%→10, <80%→0
+  - Факт: SUM(amount_collected) WHERE management='УНА', is_accepted=True
+  - KPI_план: ManualInput.kbk_share_pct * общий план взысканий * 1.20
+  - Баллы: >=100%->40, >=90%->20, >=80%->10, <80%->0
 
 calc_avg_assessment(region) → KPIResult  [KPI 3]
   - Сумма и кол-во: WHERE management='УНА', is_counted=True, form_type != 'ДФНО'
   - KPI_план: единый порог = среднее по всем 20 ДГД за прошлый год * 1.20
-  - Баллы: ≥100%→10, ≥90%→5, <90%→0  (80-89% тоже 0!)
+  - Баллы: >=100%->10, >=90%->5, <90%->0  (80-89% тоже 0, не 5!)
 
 calc_workload(region) → KPIResult  [KPI 4]
-  - Кол-во: COUNT завершённых, management='УНА', is_counted=True
+  - Кол-во: COUNT завершённых WHERE management='УНА', is_counted=True
   - staff: ManualInput.staff_count
-  - months: кол-во полных месяцев в периоде
-  - Баллы: ≥0.5→15, ≥0.4→5, <0.4→0
+  - months: кол-во полных месяцев между date_from и date_to
+  - Баллы: >=0.5->15, >=0.4->5, <0.4->0
 
 calc_long_inspections(region) → KPIResult  [KPI 5]
   - Все: COUNT(ActiveInspection) WHERE is_counted=True, region=region
-  - Долгие: COUNT WHERE (date_to - prescription_date) > 180
-  - Баллы: <20%→10, ≥20%→0
+  - Долгие: WHERE (date_to - prescription_date).days > 180
+  - Баллы: <20%->10, >=20%->0
 
 calc_cancelled(region) → KPIResult  [KPI 6]
   - Отменено: SUM(AppealDecision.amount_cancelled) WHERE is_counted=True
-  - Доначислено: Факт из KPI 1
-  - Баллы: ≤1%→15, ≤2%→5, >2%→0
+  - Доначислено: берётся из уже рассчитанного KPI 1 (Факт)
+  - Баллы: <=1%->15, <=2%->5, >2%->0
 
-calculate_all(regions) → list[KPISummary]
-  - Рассчитать все 6 KPI для всех регионов
-  - Сохранить KPIResult для каждого
-  - Сохранить KPISummary (сумма баллов)
-  - Назначить ранги (КГД — is_summary=True — не ранжируется)
+calculate_all(regions=None) → list[KPISummary]
+  - Рассчитать все 6 KPI для всех регионов (или переданных)
+  - Сохранить KPIResult для каждого KPI каждого региона
+  - Сохранить KPISummary (сумма баллов по 6 KPI)
+  - Назначить ранги по убыванию score_total
+  - КГД (is_summary=True) ранг не получает (rank=None)
   - Всё логировать в AuditLog
 
 apps/kpi/tasks.py:
 - calculate_kpi(date_from, date_to, region_ids, user_id) — Celery задача
 
-ОБЯЗАТЕЛЬНО: тесты в apps/kpi/tests/test_engine.py
-- Тест каждого из 6 KPI с известными входными данными
-- Тест граничных случаев (NULL, деление на 0, нет данных)
-- Тест итогового ранжирования
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -251,10 +189,9 @@ apps/kpi/tasks.py:
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md и docs/DEV.md.
+Прочитай claude.md и docs/DEV.md (раздел 3).
 
-Реализуй REST API для apps/core, apps/regions, apps/etl.
-Все эндпоинты из docs/DEV.md раздел 3.
+Реализуй Спринт 6: REST API для apps/core, apps/regions, apps/etl.
 
 apps/core/:
 - serializers.py: UserSerializer, AuditLogSerializer
@@ -264,7 +201,7 @@ apps/core/:
 
 apps/regions/:
 - serializers.py: RegionSerializer
-- views.py: RegionListView (только чтение, все роли)
+- views.py: RegionListView (GET only, все роли)
 - urls.py
 
 apps/etl/:
@@ -278,7 +215,7 @@ apps/etl/:
 
 config/urls.py — подключить все роутеры под /api/v1/
 
-Напиши тесты в tests/test_api.py — проверить права доступа для каждой роли.
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -287,9 +224,9 @@ config/urls.py — подключить все роутеры под /api/v1/
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md и docs/DEV.md.
+Прочитай claude.md и docs/DEV.md (раздел 3).
 
-Реализуй REST API для apps/kpi и apps/reports.
+Реализуй Спринт 7: REST API для apps/kpi и apps/reports.
 
 apps/kpi/:
 - serializers.py: KPIFormulaSerializer, KPIResultSerializer, KPISummarySerializer
@@ -297,20 +234,21 @@ apps/kpi/:
   - KPIFormulaViewSet (list, create) — Оператор
   - KPIResultViewSet (list, retrieve) — все роли (RLS через RegionScopedMixin)
   - KPISummaryViewSet (list, retrieve) — все роли (RLS)
-  - CalculateView (POST) — Оператор, запускает Celery задачу
-- filters.py — фильтры по региону, периоду, типу KPI
+  - CalculateView (POST) — Оператор, запускает Celery задачу calculate_kpi
+- filters.py — django-filter: по region, date_from, date_to, kpi_type
 - urls.py
 
 apps/reports/:
 - serializers.py: ReportApprovalSerializer
 - views.py:
-  - PendingReportsView — Проверяющий
-  - ApproveView, RejectView, RecalculateView — Проверяющий
-  - ExportXLSXView, ExportPDFView — все роли
+  - PendingReportsView (GET) — Проверяющий
+  - ApproveView, RejectView, RecalculateView (POST) — Проверяющий
+  - ExportXLSXView, ExportPDFView (GET) — все роли
 - urls.py
 
-Все View с RLS использовать RegionScopedMixin из apps/core/mixins.py.
-Напиши тесты прав доступа для каждой роли.
+Все ViewSet с данными регионов использовать RegionScopedMixin из apps/core/mixins.py.
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -319,30 +257,27 @@ apps/reports/:
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md и docs/DEV.md.
+Прочитай claude.md и docs/DEV.md (раздел 4).
 
-Реализуй все Celery задачи из docs/DEV.md раздел 4.
+Реализуй Спринт 8: все Celery задачи.
 
 apps/etl/tasks.py:
-- run_import_job(job_id) — запуск импорта, max_retries=3, exponential backoff
+- run_import_job(job_id) — max_retries=3, exponential backoff
+  Обновляет ImportJob.status, логирует в AuditLog
 
 apps/kpi/tasks.py:
 - calculate_kpi(date_from, date_to, region_ids, user_id)
-- scheduled_kpi_calculation() — для Celery Beat
+- scheduled_kpi_calculation() — для Celery Beat (ежедневно в 06:00)
 
 apps/reports/tasks.py:
 - export_to_xlsx(summary_id, user_id)
 - export_to_pdf(summary_id, user_id)
 
-config/celery.py:
-- Настроить CELERY_BEAT_SCHEDULE: автоматический расчёт раз в сутки (настраиваемый)
-
 Каждая задача:
-- Обновляет статус в ImportJob / KPIResult
-- Логирует в AuditLog (start, success, error)
+- Логирует start/success/error в AuditLog
 - При ошибке: retry с backoff, затем status='error' + error_message
 
-Напиши тесты с mock для всех задач.
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -353,29 +288,36 @@ config/celery.py:
 ```
 Прочитай claude.md.
 
-Инициализируй Vue 3 проект в папке frontend/ (Vite + Vue 3 + Pinia + Vue Router).
+Инициализируй Vue 3 проект в папке frontend/ (Vite + Vue 3 + Pinia + Vue Router + Axios).
 
 Реализуй:
 
-1. frontend/src/api/client.js — Axios с JWT interceptors (auto-refresh)
+1. frontend/src/api/client.js
+   — Axios с JWT interceptors (auto-refresh при 401)
 
-2. frontend/src/stores/auth.js — Pinia store: login, logout, роль пользователя
+2. frontend/src/stores/auth.js
+   — Pinia: login, logout, текущий пользователь, роль
 
-3. frontend/src/router/index.js — все маршруты из DEV.md раздел 6
-   - Route guards: проверка роли перед входом на страницу
+3. frontend/src/router/index.js
+   — все маршруты из DEV.md раздел 6
+   — route guards: проверка роли перед входом
 
-4. frontend/src/views/LoginView.vue — форма логина
+4. frontend/src/views/LoginView.vue
+   — форма логина (email + password)
 
-5. frontend/src/views/DashboardView.vue:
-   - SVG/Leaflet карта Казахстана с 20 регионами
-   - Цветовая индикация по баллам: зелёный (≥80), жёлтый (50–79), красный (<50)
-   - Таблица рейтинга ДГД (позиция, регион, баллы итого, каждый KPI)
-   - Клик по региону → переход на /kpi/:region
-   - RLS: наблюдатель видит только свои регионы подсвеченными
+5. frontend/src/views/DashboardView.vue
+   — SVG карта Казахстана 20 регионов (Leaflet.js + GeoJSON)
+   — цветовая индикация: зелёный >=80б, жёлтый 50-79б, красный <50б
+   — таблица рейтинга: позиция, регион, баллы итого, каждый KPI отдельно
+   — клик по региону — переход на /kpi/:regionCode
+   — RLS: viewer видит только свои регионы
 
-6. frontend/src/components/KPIScoreCard.vue — карточка одного KPI (балл, факт, план, %)
+6. frontend/src/components/KPIScoreCard.vue
+   — карточка KPI: название, балл, факт, план, %
 
-Стили: минималистичные, цвета КГД (синий #1F4E79 как акцент).
+Стили: цвет акцента #1F4E79 (синий КГД), минималистично.
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -386,22 +328,23 @@ config/celery.py:
 ```
 Прочитай claude.md.
 
-Реализуй страницы детального просмотра KPI.
+Реализуй Спринт 10: страницы детального просмотра KPI.
 
 frontend/src/views/KPIDetailView.vue:
-- Фильтры: период (date_from / date_to), регион, управление
+- Фильтры: период (date_from/date_to), регион, тип KPI
 - Таблица результатов по всем ДГД
-- График динамики (Chart.js — линейный)
-- Для каждого KPI — своя логика отображения (баллы, факт, план, %)
-- Экспорт кнопки (XLSX, PDF) — вызов API
+- График динамики (Chart.js, линейный)
+- Кнопки экспорта XLSX и PDF
 
 frontend/src/views/CompareView.vue:
 - Выбор двух периодов
 - Side-by-side таблица: период А vs период Б
-- Дельта баллов по каждому KPI
+- Дельта баллов по каждому KPI и итого
 
-frontend/src/components/KPITable.vue — переиспользуемая таблица
+frontend/src/components/KPITable.vue — переиспользуемая таблица результатов
 frontend/src/components/KPIChart.vue — Chart.js обёртка
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -412,31 +355,33 @@ frontend/src/components/KPIChart.vue — Chart.js обёртка
 ```
 Прочитай claude.md.
 
-Реализуй страницы для роли Оператор.
+Реализуй Спринт 11: страницы для роли Оператор.
 
 frontend/src/views/ImportView.vue:
 - Кнопка "Запустить импорт из БД КГД"
-- Список ImportJob с статусом (pending/running/done/error)
-- Прогресс в реальном времени (polling каждые 3 сек)
+- Список ImportJob: статус, кол-во записей, время
+- Polling каждые 3 сек для статуса running
 
 frontend/src/views/DataEditorView.vue:
-- Таблица CompletedInspection с фильтрами
+- Таблица CompletedInspection с фильтрами (регион, дата, тип)
 - Inline-редактирование флагов is_counted, is_accepted
 - Кнопка "Пометить аномалию"
 
 frontend/src/views/FormulasView.vue:
-- Список версий KPIFormula
-- Форма создания новой версии (JSON-редактор порогов)
+- Список версий KPIFormula по каждому KPI
+- Форма создания новой версии с редактором порогов
 
 frontend/src/views/CalculateView.vue:
-- Выбор периода (date_from / date_to)
-- Выбор регионов (или "все")
-- Кнопка "Рассчитать" → Celery задача → polling статуса
+- Выбор периода (date_from/date_to)
+- Выбор регионов (мультиселект или "все")
+- Запуск расчёта, polling статуса Celery задачи
 - Кнопка "Отправить на утверждение"
 
 frontend/src/views/ManualInputView.vue:
-- Форма ввода kbk_share_pct и staff_count для каждого ДГД
-- Год выбирается из дропдауна
+- Таблица: для каждого ДГД поля kbk_share_pct и staff_count
+- Выбор года из дропдауна
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -447,15 +392,19 @@ frontend/src/views/ManualInputView.vue:
 ```
 Прочитай claude.md.
 
+Реализуй Спринт 12: страницы для роли Проверяющий.
+
 frontend/src/views/ApprovalView.vue:
-- Список отчётов со статусом "submitted"
-- Для каждого: регион, период, баллы итого, все 6 KPI
-- Кнопки: "Утвердить" / "Вернуть" (с полем комментария) / "Запросить пересчёт"
+- Список отчётов со статусом submitted
+- Для каждого: регион, период, баллы итого, 6 KPI по отдельности
+- Кнопки: "Утвердить" / "Вернуть" (с комментарием) / "Запросить пересчёт"
 
 frontend/src/views/HistoryView.vue:
 - Архив утверждённых отчётов
 - Фильтры: период, регион, статус
-- Ссылки на экспорт PDF/XLSX
+- Кнопки экспорта PDF/XLSX для каждого отчёта
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -466,20 +415,23 @@ frontend/src/views/HistoryView.vue:
 ```
 Прочитай claude.md.
 
+Реализуй Спринт 13: страницы для роли Администратор.
+
 frontend/src/views/UsersView.vue:
-- CRUD пользователей
-- Назначение роли из дропдауна
-- Для роли viewer — привязка регионов (мультиселект)
-- MAC-адрес пользователя
+- Таблица пользователей с CRUD
+- Поля: имя, email, роль (дропдаун), MAC-адрес
+- Для роли viewer — мультиселект привязки регионов
 
 frontend/src/views/AuditLogsView.vue:
-- Таблица AuditLog с фильтрами (пользователь, тип события, дата)
-- Без пагинации — cursor-based
+- Таблица AuditLog с cursor-based пагинацией
+- Фильтры: пользователь, тип события, дата
 
 frontend/src/views/ETLMonitorView.vue:
-- Статус всех ImportJob
+- Список всех ImportJob с статусами
 - Ошибки последних импортов
-- Статус Celery workers (ping)
+- Статус Celery workers
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -490,24 +442,26 @@ frontend/src/views/ETLMonitorView.vue:
 ```
 Прочитай claude.md.
 
-Реализуй экспорт отчётов.
+Реализуй Спринт 14: экспорт отчётов.
 
 apps/reports/services/xlsx_exporter.py:
 - Класс XLSXExporter(summary: KPISummary)
-- generate() → BytesIO
-- Лист 1: Сводный рейтинг (20 ДГД, все KPI, баллы, позиции)
-- Лист 2–7: детали по каждому KPI
-- Форматирование: заморозка строк, цветовые маркеры (зелёный/жёлтый/красный)
-- Логотип КГД в шапке, дата, версия расчёта
+- generate() -> BytesIO
+- Лист 1: сводный рейтинг (20 ДГД, позиции, баллы, все 6 KPI)
+- Листы 2-7: детали по каждому KPI
+- Форматирование: заморозка первой строки,
+  цвет ячеек баллов (зелёный/жёлтый/красный)
+- Шапка: название отчёта, период, дата генерации, версия формулы
 
 apps/reports/services/pdf_exporter.py:
 - Класс PDFExporter(summary: KPISummary)
-- generate() → BytesIO (WeasyPrint)
+- generate() -> BytesIO (WeasyPrint)
 - HTML-шаблон: templates/reports/kpi_report.html
-- В шапке: герб КГД, период, дата генерации, версия формулы
+- Шапка: период, дата генерации, версия формулы
 
-Оба экспортёра логируют в AuditLog.
-Тесты: проверить что файлы генерируются без ошибок.
+Оба экспортёра логируют в AuditLog событие 'export'.
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -516,30 +470,32 @@ apps/reports/services/pdf_exporter.py:
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md и docs/DEV.md раздел 7.
+Прочитай claude.md и docs/DEV.md (раздел 7).
 
-Реализуй:
+Реализуй Спринт 15: безопасность.
 
-1. apps/core/middleware.py — MACAddressMiddleware
-   - При логине: проверить mac_address из запроса с User.mac_address
-   - Если не совпадает → 403
+1. apps/core/middleware.py — MACAddressMiddleware:
+   - При логине проверять mac_address из запроса с User.mac_address
+   - Если не совпадает — 403
    - Логировать попытки в AuditLog
 
-2. apps/core/permissions.py — все DRF Permission-классы из DEV.md
+2. apps/core/permissions.py:
+   IsAdmin, IsOperator, IsReviewer, IsViewer, IsOperatorOrAdmin
 
-3. Проверить RLS во всех ViewSet:
-   - Для роли viewer: все QuerySet должны проходить через RegionScopedMixin
-   - Написать тест: viewer не может получить данные чужого региона
+3. Проверить что все ViewSet с данными используют RegionScopedMixin
+   (viewer не должен видеть данные чужих регионов)
 
 4. config/settings/prod.py:
-   - SECURE_HSTS_SECONDS = 31536000
-   - SESSION_COOKIE_SECURE = True
-   - CSRF_COOKIE_SECURE = True
-   - SECURE_SSL_REDIRECT = True
+   SECURE_HSTS_SECONDS = 31536000
+   SESSION_COOKIE_SECURE = True
+   CSRF_COOKIE_SECURE = True
+   SECURE_SSL_REDIRECT = True
 
-5. Rate limiting на /api/v1/auth/login/ — django-ratelimit: 5 запросов/мин
+5. Rate limiting на /api/v1/auth/login/ — 5 запросов/мин (django-ratelimit)
 
-6. CORS настройки — разрешить только домен Vue фронта
+6. CORS: разрешить только домен из env CORS_ALLOWED_ORIGINS
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -548,34 +504,35 @@ apps/reports/services/pdf_exporter.py:
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md. Этот спринт — валидация бизнес-логики.
+Прочитай claude.md. Этот спринт — валидация бизнес-логики KPI Engine.
 
 Реализуй полный набор тестов в apps/kpi/tests/test_engine.py.
 
-Для каждого из 6 KPI напиши тесты:
+Для каждого из 6 KPI:
 
-1. Нормальный случай — входные данные → ожидаемые баллы
-   Используй конкретные числа из claude.md (формулы)
+1. Нормальный случай — конкретные числа на входе, ожидаемые баллы на выходе
 
 2. Граничные случаи:
-   - Ровно 100% → должно дать максимум баллов
-   - 99.9% → на балл меньше
-   - 0 проверок → баллы = 0, не ошибка
-   - NULL суммы → баллы = 0
+   - Ровно 100% — максимум баллов
+   - 99.9% — на одну ступень меньше
+   - 0 данных — баллы = 0, не ошибка деления на ноль
+   - NULL / пустые данные — баллы = 0
 
 3. KPI 3 специфика:
-   - Диапазон 80–89% → 0 баллов (не 5!)
-   - ДФНО исключён из суммы и кол-ва
+   - Диапазон 80-89% — 0 баллов (не 5!)
+   - Записи с form_type='ДФНО' исключены из суммы и кол-ва
 
-4. KPI 4: проверить расчёт Месяцев для разных периодов
+4. KPI 4: расчёт месяцев корректен для разных периодов
 
-5. KPI 6: проверить исключение актов >2 лет
+5. KPI 6: акты старше 2 лет до решения комиссии исключены
 
-6. Итоговый ранжирование:
-   - КГД (is_summary=True) не получает ранг
-   - 20 ДГД получают ранги 1–20 без дублей
+6. Рейтинг:
+   - КГД (is_summary=True) не получает ранг (rank=None)
+   - 20 ДГД получают уникальные ранги 1-20
 
 Цель: результаты должны совпасть с ручным расчётом Олжаса.
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
@@ -584,72 +541,73 @@ apps/reports/services/pdf_exporter.py:
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md.
+Прочитай claude.md и docs/DEV.md (раздел 1, инфраструктура).
+
+Реализуй Спринт 17: финальная инфраструктура.
 
 1. Доработай docker-compose.yml:
-   - Все 7 сервисов из DEV.md раздел 1
+   - Сервисы: web, db, redis, worker, beat, frontend, nginx
    - Healthcheck для db и redis
-   - Volumes для PostgreSQL данных
-   - .env файл через env_file
+   - Volume для PostgreSQL данных
+   - env_file: .env
 
 2. docker/nginx.conf:
-   - /api/ → Django (web:8000)
-   - / → Vue (frontend:80)
-   - TLS заглушка (самоподписанный сертификат для dev)
+   - /api/ — Django (web:8000)
+   - / — Vue (frontend:80)
+   - Самоподписанный сертификат для dev
 
-3. Dockerfile.backend — многоэтапная сборка Django
-4. Dockerfile.frontend — Vue build + nginx
+3. Dockerfile (backend) — многоэтапная сборка Python 3.12-slim
+4. frontend/Dockerfile — Vue build + nginx
 
-5. Makefile с командами:
+5. Makefile:
    make build    — сборка контейнеров
    make up       — запуск
    make down     — остановка
    make migrate  — миграции
-   make seed     — загрузка фикстур (регионы + начальные формулы)
+   make seed     — loaddata regions + init_formulas
    make test     — запуск всех тестов
    make shell    — Django shell
 
-6. GitHub Actions (или GitLab CI) .yml:
+6. .github/workflows/ci.yml:
    - При push: запуск тестов
    - При merge в main: сборка Docker образов
+
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
 
 ## Спринт 18 — Замена условных полей на реальные
 
-> ⚠️ Этот спринт выполнять ТОЛЬКО после получения schema БД КГД от Олжаса.
+> ⚠️ Выполнять ТОЛЬКО после получения реальной schema БД КГД от Олжаса.
 
 **Промпт для Claude Code:**
 ```
-Прочитай claude.md (таблица "Условные поля БД").
+Прочитай claude.md (раздел "Условные поля БД").
 
-Получена реальная schema БД КГД. Нужно:
+Получена реальная schema БД КГД. Выполни замену условных полей:
 
-1. Обновить таблицу условных полей в claude.md — заменить на реальные названия
-
+1. Обнови таблицу условных полей в claude.md — реальные названия
 2. apps/etl/services/normalizer.py:
-   - Обновить маппинг полей в normalize_*() методах
-   - Реализовать реальное подключение к БД КГД в _fetch_from_kgd_db()
-     (убрать заглушку из Спринта 4)
-
+   - Обнови маппинг в normalize_*() методах
+   - Реализуй реальное подключение в _fetch_from_kgd_db() (убери заглушку)
 3. apps/kpi/services/engine.py:
-   - Проверить все ORM-запросы — поля должны совпадать с реальными
-   - Запустить тесты из Спринта 16
+   - Проверь все ORM-запросы на соответствие реальным полям
+4. Запусти расчёт за период 01.01.2025-01.01.2026
+   и сравни с файлом Статистика_КЭР_РК_на_01_01_2026.xlsx
+5. Зафиксируй расхождения в docs/validation_report.md
 
-4. Провести сверку: запустить расчёт за 01.01.2026,
-   сравнить результаты с файлом Статистика_КЭР_РК_на_01_01_2026.xlsx
-
-5. Зафиксировать расхождения и согласовать с Олжасом.
+Не запускай команды. Только создай/измени файлы.
 ```
 
 ---
 
-## Примечания для Claude Code
+## Правила для Claude Code
 
-- **Всегда читать `claude.md` первым** — там вся бизнес-логика
-- **Условные поля** — не менять до Спринта 18, использовать как есть
-- **Суммы** — хранить в тенге (целые BigInteger), в миллионах только для отображения
-- **RLS** — не забывать RegionScopedMixin во всех view
+- **Всегда читать `claude.md` первым** — там вся бизнес-логика и формулы
+- **Не запускать команды** — только создавать и изменять файлы
+- **Условные поля не менять** до Спринта 18
+- **Суммы** — BigIntegerField (тенге), в миллионах только для отображения
+- **RLS** — RegionScopedMixin во всех ViewSet с данными регионов
 - **AuditLog** — логировать в каждом сервисном методе
-- **Тесты** — писать в каждом спринте, не откладывать
+- **Тесты** — только в Спринте 16
