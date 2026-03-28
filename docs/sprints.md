@@ -18,7 +18,7 @@
 | 4 | ETL: импорт и нормализация | ✅ Выполнен |
 | 5 | KPI Engine: расчёт всех 6 KPI | ✅ Выполнен |
 | 6 | REST API: core + regions + etl | ✅ Выполнен |
-| 7 | REST API: kpi + reports | ⬜ Не начат |
+| 7 | REST API: kpi + reports | ✅ Выполнен |
 | 8 | Celery: задачи и расписание | ⬜ Не начат |
 | 9 | Vue: Auth + Dashboard + карта | ⬜ Не начат |
 | 10 | Vue: KPI детали + сравнение | ⬜ Не начат |
