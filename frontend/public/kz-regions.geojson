@@ -1,0 +1,105 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "code": "03xx", "name_ru": "Акмолинская обл.", "name_short": "Акмолинская" },
+      "geometry": { "type": "Point", "coordinates": [69.40, 53.29] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "06xx", "name_ru": "Актюбинская обл.", "name_short": "Актюбинская" },
+      "geometry": { "type": "Point", "coordinates": [57.21, 50.28] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "09xx", "name_ru": "Алматинская обл.", "name_short": "Алматинская" },
+      "geometry": { "type": "Point", "coordinates": [78.39, 44.02] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "15xx", "name_ru": "Атырауская обл.", "name_short": "Атырауская" },
+      "geometry": { "type": "Point", "coordinates": [51.88, 47.12] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "18xx", "name_ru": "Восточно-Казахстанская обл.", "name_short": "ВКО" },
+      "geometry": { "type": "Point", "coordinates": [82.62, 49.95] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "60xx", "name_ru": "г. Алматы", "name_short": "г. Алматы" },
+      "geometry": { "type": "Point", "coordinates": [76.95, 43.23] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "62xx", "name_ru": "г. Астана", "name_short": "г. Астана" },
+      "geometry": { "type": "Point", "coordinates": [71.45, 51.18] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "59xx", "name_ru": "г. Шымкент", "name_short": "г. Шымкент" },
+      "geometry": { "type": "Point", "coordinates": [69.59, 42.32] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "21xx", "name_ru": "Жамбылская обл.", "name_short": "Жамбылская" },
+      "geometry": { "type": "Point", "coordinates": [71.37, 42.90] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "27xx", "name_ru": "Западно-Казахстанская обл.", "name_short": "ЗКО" },
+      "geometry": { "type": "Point", "coordinates": [51.37, 51.22] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "30xx", "name_ru": "Карагандинская обл.", "name_short": "Карагандинская" },
+      "geometry": { "type": "Point", "coordinates": [73.09, 49.80] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "39xx", "name_ru": "Костанайская обл.", "name_short": "Костанайская" },
+      "geometry": { "type": "Point", "coordinates": [63.62, 53.21] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "33xx", "name_ru": "Кызылординская обл.", "name_short": "Кызылординская" },
+      "geometry": { "type": "Point", "coordinates": [65.49, 44.85] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "43xx", "name_ru": "Мангистауская обл.", "name_short": "Мангистауская" },
+      "geometry": { "type": "Point", "coordinates": [52.10, 43.65] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "71xx", "name_ru": "Область Абай", "name_short": "Абай" },
+      "geometry": { "type": "Point", "coordinates": [80.22, 50.43] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "70xx", "name_ru": "Область Жетісу", "name_short": "Жетісу" },
+      "geometry": { "type": "Point", "coordinates": [78.38, 45.02] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "72xx", "name_ru": "Область Ұлытау", "name_short": "Ұлытау" },
+      "geometry": { "type": "Point", "coordinates": [67.71, 47.78] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "45xx", "name_ru": "Павлодарская обл.", "name_short": "Павлодарская" },
+      "geometry": { "type": "Point", "coordinates": [76.94, 52.29] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "48xx", "name_ru": "Северо-Казахстанская обл.", "name_short": "СКО" },
+      "geometry": { "type": "Point", "coordinates": [69.14, 54.87] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "58xx", "name_ru": "Туркестанская обл.", "name_short": "Туркестанская" },
+      "geometry": { "type": "Point", "coordinates": [68.27, 43.30] }
+    }
+  ]
+}
