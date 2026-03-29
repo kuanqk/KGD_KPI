@@ -1,5 +1,5 @@
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError
@@ -105,3 +105,37 @@ def calculate_kpi(
                 'date_to': date_to,
                 'error': str(exc),
             }
+
+
+@shared_task
+def scheduled_kpi_calculation() -> dict:
+    """
+    Celery Beat задача: ежедневный автоматический расчёт KPI.
+
+    Запускает calculate_kpi для всех регионов за период
+    01.01.<текущий год> — сегодня (накопленный итог).
+
+    Расписание задаётся в config/celery.py через CELERY_BEAT_SCHEDULE.
+    """
+    today = datetime.now(tz=timezone.utc).date()
+    date_from = date(today.year, 1, 1)
+    date_to = today
+
+    logger.info(
+        'scheduled_kpi_calculation: queuing calculate_kpi for period %s–%s',
+        date_from, date_to,
+    )
+
+    task = calculate_kpi.delay(
+        date_from=str(date_from),
+        date_to=str(date_to),
+        region_ids=None,   # все ДГД
+        user_id=None,      # системный запуск
+    )
+
+    return {
+        'status': 'queued',
+        'task_id': task.id,
+        'date_from': str(date_from),
+        'date_to': str(date_to),
+    }
