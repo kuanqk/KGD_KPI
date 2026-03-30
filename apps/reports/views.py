@@ -11,6 +11,7 @@ Reports API — утверждение отчётов и экспорт.
 """
 import logging
 
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
@@ -255,36 +256,103 @@ class RecalculateView(APIView):
 
 
 # ---------------------------------------------------------------------------
-# Export stubs (реализуются в Спринте 14)
+# Export
 # ---------------------------------------------------------------------------
 
 class ExportXLSXView(APIView):
     """
     GET /api/v1/reports/{id}/export/xlsx/
-    Экспорт сводного отчёта в формате XLSX.
-    Реализуется в Спринте 14 (openpyxl).
+
+    Генерирует XLSX-файл синхронно и отдаёт его как вложение.
+    Параллельно ставит фоновую задачу в Celery для записи в AuditLog.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk: int):
-        get_object_or_404(KPISummary, pk=pk)
-        return Response(
-            {'detail': 'Экспорт XLSX будет реализован в Спринте 14.'},
-            status=status.HTTP_501_NOT_IMPLEMENTED,
+        from apps.reports.services.xlsx_exporter import XLSXExporter
+        from apps.reports.tasks import export_to_xlsx
+
+        summary = get_object_or_404(KPISummary.objects.select_related('region'), pk=pk)
+
+        try:
+            buf = XLSXExporter(summary).generate()
+        except Exception as exc:
+            logger.error('ExportXLSXView: summary_id=%d error: %s', pk, exc)
+            return Response(
+                {'detail': 'Ошибка генерации XLSX. Попробуйте позже.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        AuditLog.log(
+            event='export',
+            user=request.user,
+            ip_address=_get_ip(request),
+            details={
+                'format': 'xlsx',
+                'summary_id': pk,
+                'region': str(summary.region),
+                'period': f'{summary.date_from} — {summary.date_to}',
+            },
         )
+
+        # Фоновая задача для дополнительной обработки (расширяемость)
+        export_to_xlsx.delay(summary_id=pk, user_id=request.user.pk)
+
+        filename = (
+            f'kpi_report_{summary.region.code}_'
+            f'{summary.date_from}_{summary.date_to}.xlsx'
+        )
+        response = HttpResponse(
+            buf.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 
 
 class ExportPDFView(APIView):
     """
     GET /api/v1/reports/{id}/export/pdf/
-    Экспорт сводного отчёта в формате PDF.
-    Реализуется в Спринте 14 (WeasyPrint).
+
+    Генерирует PDF-файл синхронно и отдаёт его как вложение.
+    Параллельно ставит фоновую задачу в Celery для записи в AuditLog.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk: int):
-        get_object_or_404(KPISummary, pk=pk)
-        return Response(
-            {'detail': 'Экспорт PDF будет реализован в Спринте 14.'},
-            status=status.HTTP_501_NOT_IMPLEMENTED,
+        from apps.reports.services.pdf_exporter import PDFExporter
+        from apps.reports.tasks import export_to_pdf
+
+        summary = get_object_or_404(KPISummary.objects.select_related('region'), pk=pk)
+
+        try:
+            buf = PDFExporter(summary).generate()
+        except Exception as exc:
+            logger.error('ExportPDFView: summary_id=%d error: %s', pk, exc)
+            return Response(
+                {'detail': 'Ошибка генерации PDF. Попробуйте позже.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        AuditLog.log(
+            event='export',
+            user=request.user,
+            ip_address=_get_ip(request),
+            details={
+                'format': 'pdf',
+                'summary_id': pk,
+                'region': str(summary.region),
+                'period': f'{summary.date_from} — {summary.date_to}',
+            },
         )
+
+        # Фоновая задача для дополнительной обработки (расширяемость)
+        export_to_pdf.delay(summary_id=pk, user_id=request.user.pk)
+
+        filename = (
+            f'kpi_report_{summary.region.code}_'
+            f'{summary.date_from}_{summary.date_to}.pdf'
+        )
+        response = HttpResponse(buf.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response

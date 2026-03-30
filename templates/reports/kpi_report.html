@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>KPI Monitor — Отчёт КГД РК</title>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 15mm 12mm;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 9pt;
+      color: #111;
+      margin: 0;
+    }
+
+    /* ── Шапка ──────────────────────────────────────────────────── */
+    .report-header {
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #1F4E79;
+    }
+    .report-header h1 {
+      font-size: 14pt;
+      font-weight: 700;
+      color: #1F4E79;
+      margin: 0 0 4px 0;
+    }
+    .report-header .meta {
+      font-size: 8pt;
+      color: #555;
+      display: flex;
+      gap: 24px;
+    }
+
+    /* ── Разделы ─────────────────────────────────────────────────── */
+    .section {
+      margin-bottom: 16px;
+      page-break-inside: avoid;
+    }
+    .section-title {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #1F4E79;
+      margin: 0 0 6px 0;
+      padding: 4px 8px;
+      background: #EFF4FB;
+      border-left: 4px solid #1F4E79;
+    }
+
+    /* ── Таблицы ─────────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5pt;
+    }
+    thead tr th {
+      background: #1F4E79;
+      color: #fff;
+      padding: 5px 6px;
+      text-align: center;
+      font-weight: 600;
+      border: 1px solid #15396b;
+    }
+    tbody tr td {
+      padding: 4px 6px;
+      border: 1px solid #D1D5DB;
+      vertical-align: middle;
+    }
+    tbody tr:nth-child(even) td {
+      background: #F8FAFC;
+    }
+    tbody tr:hover td {
+      background: #EFF4FB;
+    }
+    .td-center { text-align: center; }
+    .td-right  { text-align: right;  }
+    .td-bold   { font-weight: 700;   }
+
+    /* ── Цвет итогового балла ───────────────────────────────────── */
+    .score-green  { background: #D1FAE5 !important; color: #065F46; font-weight: 700; }
+    .score-yellow { background: #FEF3C7 !important; color: #92400E; font-weight: 700; }
+    .score-red    { background: #FEE2E2 !important; color: #991B1B; font-weight: 700; }
+
+    /* ── КГД-итого строка ───────────────────────────────────────── */
+    .kgd-row td {
+      background: #F0F4FF !important;
+      font-weight: 700;
+      border-top: 2px solid #1F4E79;
+    }
+
+    /* ── Статус ─────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 8px;
+      font-size: 7.5pt;
+      font-weight: 600;
+    }
+    .badge-approved  { background: #D1FAE5; color: #065F46; }
+    .badge-submitted { background: #DBEAFE; color: #1D4ED8; }
+    .badge-rejected  { background: #FEE2E2; color: #991B1B; }
+    .badge-draft     { background: #F3F4F6; color: #374151; }
+
+    /* ── Разрыв страницы ────────────────────────────────────────── */
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Шапка отчёта ──────────────────────────────────────────────── -->
+  <div class="report-header">
+    <h1>KPI Monitor — КГД РК</h1>
+    <div class="meta">
+      <span><strong>Период:</strong> {{ date_from }} — {{ date_to }}</span>
+      <span><strong>Дата формирования:</strong> {{ generated_at|date:"d.m.Y H:i" }}</span>
+      {% if formula_version %}
+      <span><strong>Версия формулы:</strong> {{ formula_version }}</span>
+      {% endif %}
+      <span>
+        <strong>Статус:</strong>
+        <span class="badge badge-{{ summary.status }}">{{ summary.get_status_display }}</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ── Лист 1: Сводный рейтинг ───────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Сводный рейтинг ДГД</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px">#</th>
+          <th style="width:160px; text-align:left">Регион</th>
+          <th>K1</th>
+          <th>K2</th>
+          <th>K3</th>
+          <th>K4</th>
+          <th>K5</th>
+          <th>K6</th>
+          <th>Итого</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in dgd_summaries %}
+        <tr>
+          <td class="td-center">{{ s.rank|default:"—" }}</td>
+          <td>{{ s.region.name_ru }}</td>
+          {% for sc in s.scores %}
+          <td class="td-center">{{ sc }}</td>
+          {% endfor %}
+          <td class="td-center
+            {% if s.score_total >= 80 %}score-green
+            {% elif s.score_total >= 50 %}score-yellow
+            {% else %}score-red{% endif %}">
+            {{ s.score_total }}
+          </td>
+        </tr>
+        {% endfor %}
+
+        {% for s in kgd_summaries %}
+        <tr class="kgd-row">
+          <td class="td-center">КГД</td>
+          <td>{{ s.region.name_ru }}</td>
+          {% for sc in s.scores %}
+          <td class="td-center">{{ sc }}</td>
+          {% endfor %}
+          <td class="td-center">{{ s.score_total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── Листы 2-7: по одному KPI ──────────────────────────────────── -->
+  {% for section in kpi_sections %}
+  <div class="section {% if forloop.first %}page-break{% endif %}">
+    <div class="section-title">{{ section.label }} (макс. {{ section.max_score }} б.)</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:160px; text-align:left">Регион</th>
+          <th>План (млн тг)</th>
+          <th>Факт (млн тг)</th>
+          <th>% исполнения</th>
+          <th>Баллы</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in section.results %}
+        <tr>
+          <td>{{ r.region.name_ru }}</td>
+          <td class="td-right">
+            {% if r.plan != None %}{{ r.plan|floatformat:2 }}{% else %}—{% endif %}
+          </td>
+          <td class="td-right">
+            {% if r.fact != None %}{{ r.fact|floatformat:2 }}{% else %}—{% endif %}
+          </td>
+          <td class="td-center">
+            {% if r.percent != None %}{{ r.percent|floatformat:2 }}%{% else %}—{% endif %}
+          </td>
+          <td class="td-center td-bold">{{ r.score }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="td-center" style="color:#9CA3AF;">Данные отсутствуют</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+
+</body>
+</html>
