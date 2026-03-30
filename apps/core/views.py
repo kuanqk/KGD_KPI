@@ -11,6 +11,7 @@
 """
 import logging
 
+from django_ratelimit.core import is_ratelimited
 from rest_framework import mixins, status, viewsets
 from rest_framework.pagination import CursorPagination
 from rest_framework.permissions import IsAuthenticated
@@ -44,9 +45,19 @@ class LoginView(TokenObtainPairView):
     Body: {"username": "...", "password": "..."}
     Возвращает: {"access": "...", "refresh": "..."}
     Записывает событие 'login' в AuditLog.
+    Rate limit: 5 запросов/минуту по IP (429 при превышении).
     """
 
     def post(self, request, *args, **kwargs):
+        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True):
+            logger.warning(
+                'LoginView: rate limit exceeded ip=%s', _get_ip(request)
+            )
+            return Response(
+                {'detail': 'Слишком много попыток входа. Подождите минуту.'},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
         response = super().post(request, *args, **kwargs)
         if response.status_code == status.HTTP_200_OK:
             try:
