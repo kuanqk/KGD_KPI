@@ -41,6 +41,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:8000/api/v1/health/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   worker:
     build: .
@@ -55,6 +62,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
   beat:
     build: .
@@ -69,6 +77,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build:
@@ -85,8 +94,11 @@ services:
       - static_volume:/static
       - media_volume:/media
     depends_on:
-      - web
-      - frontend
+      web:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   postgres_data:

@@ -1,4 +1,4 @@
-.PHONY: build up down migrate seed test shell
+.PHONY: build up down migrate seed test shell logs restart superuser
 
 build:
 	docker-compose build
@@ -21,3 +21,12 @@ test:
 
 shell:
 	docker-compose run --rm web python manage.py shell --settings=config.settings.dev
+
+logs:
+	docker-compose logs -f
+
+restart:
+	docker-compose restart
+
+superuser:
+	docker-compose run --rm web python manage.py createsuperuser --settings=config.settings.prod
