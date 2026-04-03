@@ -92,9 +92,12 @@ class ApproveView(APIView):
         summary = _get_summary_for_reviewer(pk, request)
 
         if summary.status != 'submitted':
+            detail = (
+                f'Нельзя утвердить отчёт со статусом «{summary.get_status_display()}». '
+                'Ожидается статус «На утверждении».'
+            )
             return Response(
-                {'detail': f'Нельзя утвердить отчёт со статусом «{summary.get_status_display()}». '
-                            'Ожидается статус «На утверждении».'},
+                {'detail': detail},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

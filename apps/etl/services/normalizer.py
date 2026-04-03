@@ -32,8 +32,6 @@ ETL нормализатор: маппинг условных полей БД К
 import logging
 from datetime import date
 
-from django.utils import timezone
-
 from apps.etl.models import ActiveInspection, AppealDecision, CompletedInspection, ImportJob
 from apps.regions.models import Region
 

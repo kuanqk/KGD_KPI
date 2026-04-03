@@ -143,13 +143,13 @@ class KPISummary(models.Model):
     date_to = models.DateField(_('период по'))
 
     # Баллы по каждому KPI
-    score_assessment       = models.PositiveSmallIntegerField(_('KPI 1 баллы'), default=0)
-    score_collection       = models.PositiveSmallIntegerField(_('KPI 2 баллы'), default=0)
-    score_avg_assessment   = models.PositiveSmallIntegerField(_('KPI 3 баллы'), default=0)
-    score_workload         = models.PositiveSmallIntegerField(_('KPI 4 баллы'), default=0)
+    score_assessment = models.PositiveSmallIntegerField(_('KPI 1 баллы'), default=0)
+    score_collection = models.PositiveSmallIntegerField(_('KPI 2 баллы'), default=0)
+    score_avg_assessment = models.PositiveSmallIntegerField(_('KPI 3 баллы'), default=0)
+    score_workload = models.PositiveSmallIntegerField(_('KPI 4 баллы'), default=0)
     score_long_inspections = models.PositiveSmallIntegerField(_('KPI 5 баллы'), default=0)
-    score_cancelled        = models.PositiveSmallIntegerField(_('KPI 6 баллы'), default=0)
-    score_total            = models.PositiveSmallIntegerField(_('итого баллов'), default=0)
+    score_cancelled = models.PositiveSmallIntegerField(_('KPI 6 баллы'), default=0)
+    score_total = models.PositiveSmallIntegerField(_('итого баллов'), default=0)
 
     # Позиция в рейтинге (NULL для КГД-итого — is_summary=True)
     rank = models.PositiveSmallIntegerField(_('позиция'), null=True, blank=True)

@@ -1,4 +1,3 @@
-from django.db import models
 from django.test import TestCase
 
 from apps.core.mixins import RegionScopedQuerySet
@@ -56,7 +55,6 @@ class RegionScopedQuerySetTest(TestCase):
 
     def test_admin_sees_all(self):
         admin = make_user('admin', 'admin')
-        qs = Region.objects.all()
         # для admin/operator/reviewer метод должен вернуть исходный qs без фильтрации
         # Создадим минимальный тест-qs через подкласс
         result = _FullRegionQS(Region).for_user(admin)

@@ -11,7 +11,7 @@
   - calculate_all: ранжирование, КГД без ранга, пересчёт (update_or_create)
 """
 import itertools
-from datetime import date, timedelta
+from datetime import date
 from decimal import Decimal
 from unittest.mock import patch
 

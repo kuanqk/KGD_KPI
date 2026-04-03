@@ -3,7 +3,7 @@
 Используют mock-данные и фикстуры регионов — без реального подключения к БД КГД.
 """
 from datetime import date
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.test import TestCase
 
@@ -17,6 +17,7 @@ from apps.etl.models import (
 from apps.etl.services.importer import KGDImporter
 from apps.etl.services.normalizer import DataNormalizer, _detect_source
 from apps.regions.models import Region
+
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -8,6 +8,14 @@ from apps.kpi.models import KPIFormula
 ALL_TYPES = [kpi_type for kpi_type, _ in KPIFormula.KPI_TYPES]
 
 
+def _rule(thresholds, *, condition, value):
+    """Одна строка порога по condition + value (value может повторяться в разных правилах)."""
+    for t in thresholds:
+        if t['condition'] == condition and t['value'] == value:
+            return t
+    raise AssertionError(f'No threshold rule: condition={condition!r}, value={value!r}')
+
+
 class InitFormulasCommandTest(TestCase):
     def _call(self, **kwargs):
         out = StringIO()
@@ -57,9 +65,8 @@ class InitFormulasCommandTest(TestCase):
     def test_kpi1_thresholds(self):
         self._call()
         thresholds = KPIFormula.objects.get(kpi_type='assessment').config['thresholds']
-        scores = {t['value']: t['score'] for t in thresholds}
-        self.assertEqual(scores[100], 10)
-        self.assertEqual(scores[90],  5)
+        self.assertEqual(_rule(thresholds, condition='gte', value=100)['score'], 10)
+        self.assertEqual(_rule(thresholds, condition='gte', value=90)['score'], 5)
 
     def test_kpi2_collection_max_score_40(self):
         self._call()
@@ -69,10 +76,9 @@ class InitFormulasCommandTest(TestCase):
     def test_kpi2_thresholds_four_levels(self):
         self._call()
         thresholds = KPIFormula.objects.get(kpi_type='collection').config['thresholds']
-        scores = {t['value']: t['score'] for t in thresholds}
-        self.assertEqual(scores[100], 40)
-        self.assertEqual(scores[90],  20)
-        self.assertEqual(scores[80],  10)
+        self.assertEqual(_rule(thresholds, condition='gte', value=100)['score'], 40)
+        self.assertEqual(_rule(thresholds, condition='gte', value=90)['score'], 20)
+        self.assertEqual(_rule(thresholds, condition='gte', value=80)['score'], 10)
 
     def test_kpi3_avg_assessment_max_score_10(self):
         self._call()
@@ -101,9 +107,8 @@ class InitFormulasCommandTest(TestCase):
     def test_kpi4_thresholds_coefficient(self):
         self._call()
         thresholds = KPIFormula.objects.get(kpi_type='workload').config['thresholds']
-        scores = {t['value']: t['score'] for t in thresholds}
-        self.assertEqual(scores[0.5], 15)
-        self.assertEqual(scores[0.4], 5)
+        self.assertEqual(_rule(thresholds, condition='gte', value=0.5)['score'], 15)
+        self.assertEqual(_rule(thresholds, condition='gte', value=0.4)['score'], 5)
 
     def test_kpi5_long_inspections_max_score_10(self):
         self._call()
@@ -130,9 +135,8 @@ class InitFormulasCommandTest(TestCase):
     def test_kpi6_thresholds(self):
         self._call()
         thresholds = KPIFormula.objects.get(kpi_type='cancelled').config['thresholds']
-        scores = {t['value']: t['score'] for t in thresholds}
-        self.assertEqual(scores[1], 15)
-        self.assertEqual(scores[2], 5)
+        self.assertEqual(_rule(thresholds, condition='lte', value=1)['score'], 15)
+        self.assertEqual(_rule(thresholds, condition='lte', value=2)['score'], 5)
 
     def test_kpi6_two_year_exclusion_config(self):
         self._call()

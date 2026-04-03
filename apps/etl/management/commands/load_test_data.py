@@ -9,7 +9,6 @@ Management command: load_test_data
 """
 
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 from datetime import date, timedelta
 import random
 
@@ -131,8 +130,8 @@ KPI5_DATA = {
 # KPI 6 — Отмененные суммы (тыс тг → конвертируем в тг для BigIntegerField)
 KPI6_DATA = {
     '03xx': {'assessed': 1659.84, 'cancelled': 152.81},
-    '06xx': {'assessed': 11448.07,'cancelled': 0},
-    '09xx': {'assessed': 12007.00,'cancelled': 19.27},
+    '06xx': {'assessed': 11448.07, 'cancelled': 0},
+    '09xx': {'assessed': 12007.00, 'cancelled': 19.27},
     '15xx': {'assessed': 6315.99, 'cancelled': 0},
     '18xx': {'assessed': 2538.06, 'cancelled': 0.06},
     '21xx': {'assessed': 2764.18, 'cancelled': 0},
@@ -145,8 +144,8 @@ KPI6_DATA = {
     '48xx': {'assessed': 1116.02, 'cancelled': 0},
     '58xx': {'assessed': 7752.95, 'cancelled': 34.05},
     '59xx': {'assessed': 7812.37, 'cancelled': 129.28},
-    '60xx': {'assessed': 39277.38,'cancelled': 25.80},
-    '62xx': {'assessed': 23269.38,'cancelled': 85.23},
+    '60xx': {'assessed': 39277.38, 'cancelled': 25.80},
+    '62xx': {'assessed': 23269.38, 'cancelled': 85.23},
     '70xx': {'assessed': 3866.58, 'cancelled': 23.94},
     '71xx': {'assessed': 2720.64, 'cancelled': 76.43},
     '72xx': {'assessed': 830.56,  'cancelled': 0},
@@ -158,7 +157,7 @@ PREV_YEAR_ASSESSED = {
     '27xx': 1813.227539,   '30xx': 5929.786161919998, '33xx': 2332.9595042900005,
     '39xx': 1596.83022723, '43xx': 4238.92128565,  '45xx': 2911.8495821799993,
     '48xx': 2185.8098180499996, '58xx': 2702.019207360001, '59xx': 7837.666042839999,
-    '60xx': 24801.47262629,'62xx': 11065.043190709996, '70xx': 1842.61529008,
+    '60xx': 24801.47262629, '62xx': 11065.043190709996, '70xx': 1842.61529008,
     '71xx': 631.04461513,  '72xx': 298.13341255,
 }
 
@@ -178,7 +177,7 @@ KBK_SHARES = {
     '18xx': 2.5176, '21xx': 2.2009, '27xx': 2.0262, '30xx': 4.4708,
     '33xx': 1.9099, '39xx': 1.9255, '43xx': 3.0562, '45xx': 2.9847,
     '48xx': 0.9801, '58xx': 1.5619, '59xx': 3.3730, '60xx': 37.7631,
-    '62xx': 19.0974,'70xx': 0.8457, '71xx': 1.0092, '72xx': 0.5931,
+    '62xx': 19.0974, '70xx': 0.8457, '71xx': 1.0092, '72xx': 0.5931,
 }
 
 
@@ -287,7 +286,6 @@ class Command(BaseCommand):
         # ── CompletedInspection: прошлогодние данные 2024 (нужны для расчёта плана KPI 1,2) ──
         self.stdout.write('Загружаем данные за 2024 год (для расчёта плана)...')
         prev_year_start = date(2024, 1, 1)
-        prev_year_end = date(2024, 12, 31)
         prev_batch = []
         prev_count = 0
 

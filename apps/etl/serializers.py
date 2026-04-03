@@ -2,12 +2,10 @@ from rest_framework import serializers
 
 from apps.etl.models import (
     ActiveInspection,
-    AppealDecision,
     CompletedInspection,
     ImportJob,
     ManualInput,
 )
-from apps.regions.models import Region
 
 
 class ImportJobSerializer(serializers.ModelSerializer):
