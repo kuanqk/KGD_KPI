@@ -444,7 +444,7 @@ GET    /api/v1/admin/users/
 POST   /api/v1/admin/users/
 PUT    /api/v1/admin/users/{id}/
 GET    /api/v1/admin/audit-logs/
-GET    /api/v1/admin/etl-monitor/
+# Мониторинг импорта: GET /api/v1/etl/jobs/ (см. docs/architecture/api.md)
 ```
 
 ---

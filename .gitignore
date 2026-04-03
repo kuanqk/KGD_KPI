@@ -46,6 +46,7 @@ staticfiles/
 
 # Docker
 .docker/
+docker-compose.override.yml
 
 # Frontend
 frontend/node_modules/

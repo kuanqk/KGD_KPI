@@ -7,7 +7,7 @@
 |------|-----------|
 | [business/kpi_formulas.md](business/kpi_formulas.md) | 6 KPI: формулы, шкалы баллов, пороги |
 | [business/data_sources.md](business/data_sources.md) | ИНИС/ИСНА, фильтры, флаги учёта, ДФНО |
-| [business/regions.md](business/regions.md) | Справочник 20 ДГД |
+| [business/business_regions.md](business/business_regions.md) | Справочник 20 ДГД |
 
 ### Архитектура
 | Файл | Содержание |
@@ -23,12 +23,12 @@
 | [apps/etl.md](apps/etl.md) | Импорт, нормализация, ManualInput, тестовые данные |
 | [apps/kpi.md](apps/kpi.md) | KPI Engine, формулы, KPIResult, KPISummary |
 | [apps/reports.md](apps/reports.md) | Утверждение, экспорт PDF/XLSX |
-| [apps/regions.md](apps/regions.md) | Справочник регионов, фикстура |
+| [apps/apps_regions.md](apps/apps_regions.md) | Справочник регионов, фикстура |
 
 ### Фронтенд
 | Файл | Содержание |
 |------|-----------|
-| [frontend/overview.md](frontend/overview.md) | Vue 3, роуты, stores, компоненты, карта |
+| [frontend/frontend_overview.md](frontend/frontend_overview.md) | Vue 3, роуты, stores, компоненты, карта |
 
 ### Инфраструктура
 | Файл | Содержание |
@@ -55,7 +55,7 @@
 ## Быстрый старт
 
 ```bash
-cp .env.example .env        # заполни переменные
+cp .env.example .env   # заполните DB_PASSWORD
 make build
 make up
 make migrate

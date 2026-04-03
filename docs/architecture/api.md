@@ -7,6 +7,14 @@
 
 ---
 
+## Служебные
+
+```
+GET /api/v1/health/    # 200 JSON {"status": "ok"} — без JWT, для Docker / LB
+```
+
+---
+
 ## Аутентификация
 
 ```
@@ -96,8 +104,9 @@ PATCH  /api/v1/admin/users/{id}/    # Деактивировать
 
 GET /api/v1/admin/audit-logs/       # Лог (cursor pagination)
                                     # Фильтры: ?event=&user=&created_after=
-GET /api/v1/admin/etl-monitor/      # Статус импортов
 ```
+
+**Мониторинг ETL:** отдельного `GET /api/v1/admin/etl-monitor/` нет. Экран «ETL Monitor» во Vue вызывает **`GET /api/v1/etl/jobs/`** (те же права, что и у раздела ETL: администратор и оператор).
 
 Доступно: **Администратор**.
 

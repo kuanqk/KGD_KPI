@@ -1,7 +1,7 @@
 # apps/regions — Справочник регионов
 
 > Минимальный контекст для работы с этим app.
-> Справочник ДГД: [business/regions.md](../business/regions.md)
+> Справочник ДГД: [business/business_regions.md](../business/business_regions.md)
 
 ---
 

@@ -9,9 +9,9 @@
 git clone https://github.com/kuanqk/KGD_KPI.git
 cd KGD_KPI
 
-# 2. Настроить окружение
+# 2. Окружение
 cp .env.example .env
-# Заполнить POSTGRES_PASSWORD и DB_PASSWORD (любой пароль для локалки)
+# Заполнить DB_PASSWORD (и при желании DJANGO_SECRET_KEY)
 
 # 3. Поднять проект
 make build && make up && make migrate && make seed && make superuser

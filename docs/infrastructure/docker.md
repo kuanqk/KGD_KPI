@@ -27,26 +27,28 @@
 
 ---
 
-## Переменные окружения (.env)
+## Переменные окружения (`.env`)
+
+Сервисы `db`, `web`, `worker`, `beat` читают **`env_file: .env`**. Шаблон — **`.env.example`** (скопируйте в `.env`).
 
 ```env
 # Django
-DJANGO_SECRET_KEY=
+DJANGO_SECRET_KEY=change-me-in-production
 DJANGO_DEBUG=False
 DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 
-# PostgreSQL (локальная)
-POSTGRES_DB=kgd_kpi
-POSTGRES_USER=kgd_user
-POSTGRES_PASSWORD=
+# PostgreSQL
 DB_HOST=db
 DB_PORT=5432
 DB_NAME=kgd_kpi
 DB_USER=kgd_user
-DB_PASSWORD=
+DB_PASSWORD=           # ← обязательно заполнить
 
 # Redis
 REDIS_URL=redis://redis:6379/0
+
+# CORS (домен Vue фронта)
+CORS_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
 
 # Celery Beat
 CELERY_BEAT_HOUR=6     # час автоматического расчёта KPI (UTC)
@@ -57,10 +59,11 @@ KGD_DB_PORT=5432
 KGD_DB_NAME=
 KGD_DB_USER=
 KGD_DB_PASSWORD=
-
-# CORS (домен Vue фронта)
-CORS_ALLOWED_ORIGINS=http://localhost:3000
 ```
+
+`DB_PASSWORD` одновременно используется как `POSTGRES_PASSWORD` для контейнера `db` (подстановка `${DB_PASSWORD}` в `docker-compose.yml`).
+
+Без Docker: `DB_HOST=localhost`, `REDIS_URL=redis://127.0.0.1:6379/0`.
 
 ---
 
@@ -85,7 +88,7 @@ make restart    # Перезапустить все сервисы
 
 ```bash
 cp .env.example .env
-# отредактировать .env
+# задать DB_PASSWORD и при необходимости DJANGO_SECRET_KEY
 
 make build
 make up
@@ -118,7 +121,7 @@ make build && make up
 
 - **db**: `pg_isready` каждые 10с
 - **redis**: `redis-cli ping` каждые 10с
-- **web**: `GET /api/v1/health/` каждые 30с
+- **web**: опрос `GET /api/v1/health/` на `127.0.0.1:8000` (через `urllib` внутри контейнера). Заголовок `X-Forwarded-Proto: https` нужен, иначе при `SECURE_SSL_REDIRECT` Django ответит редиректом, а не 200.
 - **nginx**: зависит от `web` (ждёт healthy)
 
 ---
