@@ -7,6 +7,8 @@
 ### Job: test
 Запускается при `push` и `pull_request` на `main`.
 
+Репозиторий: `actions/checkout@v5`, `actions/setup-python@v6` (рантайм Node 24, без предупреждений о Node 20).
+
 ```yaml
 services:
   postgres:16
@@ -20,7 +22,8 @@ steps:
 ### Job: lint
 ```yaml
 steps:
-  - flake8 apps/ --max-line-length=120
+  - pip install flake8
+  - flake8 apps/   # настройки в .flake8 (длина строки, exclude migrations, per-file-ignores)
 ```
 
 ---
