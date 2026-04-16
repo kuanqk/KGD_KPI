@@ -46,14 +46,29 @@ function progressColor(score) {
   return 'var(--color-danger)'
 }
 
-function fmt(val) {
-  if (val == null) return '–'
-  if (typeof val === 'number') {
-    return val >= 1000
-      ? val.toLocaleString('ru-RU', { maximumFractionDigits: 1 })
-      : val.toLocaleString('ru-RU', { maximumFractionDigits: 2 })
+/** Крупные денежные значения — в млн ₸; мелкие коэффициенты/доли — как есть */
+function fmtAmount(val) {
+  if (val == null || val === '') return '–'
+  const n = typeof val === 'number' ? val : parseFloat(String(val).replace(/\s/g, '').replace(',', '.'))
+  if (Number.isNaN(n)) return String(val)
+  const abs = Math.abs(n)
+  if (abs >= 100_000) {
+    const m = n / 1_000_000
+    return (
+      m.toLocaleString('ru-RU', { maximumFractionDigits: 2, minimumFractionDigits: 0 }) + ' млн ₸'
+    )
   }
-  return val
+  if (abs >= 1000) {
+    return n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })
+  }
+  return n.toLocaleString('ru-RU', { maximumFractionDigits: 4 })
+}
+
+function fmtPct(val) {
+  if (val == null) return '–'
+  const n = Number(val)
+  if (Number.isNaN(n)) return '–'
+  return n.toLocaleString('ru-RU', { maximumFractionDigits: 2 }) + '%'
 }
 </script>
 
@@ -85,18 +100,18 @@ function fmt(val) {
     <div class="kpi-card__meta">
       <div class="kpi-meta-item">
         <span class="kpi-meta-item__label">Факт</span>
-        <span class="kpi-meta-item__value">{{ fmt(fact) }}</span>
+        <span class="kpi-meta-item__value">{{ fmtAmount(fact) }}</span>
       </div>
       <div class="kpi-meta-item">
         <span class="kpi-meta-item__label">План</span>
-        <span class="kpi-meta-item__value">{{ fmt(plan) }}</span>
+        <span class="kpi-meta-item__value">{{ fmtAmount(plan) }}</span>
       </div>
       <div v-if="pct != null" class="kpi-meta-item">
         <span class="kpi-meta-item__label">%</span>
         <span
           class="kpi-meta-item__value"
           :style="{ color: pct >= 100 ? 'var(--color-success)' : 'var(--color-danger)' }"
-        >{{ fmt(pct) }}%</span>
+        >{{ fmtPct(pct) }}</span>
       </div>
     </div>
   </div>
@@ -130,6 +145,8 @@ function fmt(val) {
   font-weight: 600;
   color: var(--color-text-secondary);
   line-height: 1.3;
+  min-width: 0;
+  flex: 1;
 }
 
 .kpi-card__score {
@@ -159,14 +176,16 @@ function fmt(val) {
 }
 
 .kpi-card__meta {
-  display: flex;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
 }
 
 .kpi-meta-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
 .kpi-meta-item__label {
@@ -177,8 +196,12 @@ function fmt(val) {
 }
 
 .kpi-meta-item__value {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 </style>

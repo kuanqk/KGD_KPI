@@ -521,16 +521,15 @@ watch(selectedRegionCode, () => refresh())
 
 .score-cards-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
+  align-items: stretch;
 }
 
-@media (max-width: 1200px) {
-  .score-cards-grid { grid-template-columns: repeat(3, 1fr); }
-}
-
-@media (max-width: 700px) {
-  .score-cards-grid { grid-template-columns: repeat(2, 1fr); }
+@media (max-width: 520px) {
+  .score-cards-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Body grid */
