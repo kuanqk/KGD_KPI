@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KGD — жобалар</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(ellipse 120% 80% at 50% -20%, #1e3a5f 0%, var(--bg) 55%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    .wrap {
+      max-width: 28rem;
+      width: 100%;
+    }
+    h1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin: 0 0 0.35rem;
+      letter-spacing: -0.02em;
+    }
+    p.sub {
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.45;
+    }
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    a.card {
+      display: block;
+      padding: 1rem 1.1rem;
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      color: var(--text);
+      text-decoration: none;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    a.card:hover {
+      border-color: rgba(59, 130, 246, 0.45);
+      background: #1f2a3d;
+    }
+    a.card strong {
+      display: block;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    a.card span {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .hint {
+      margin-top: 1.25rem;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>КГД жобалары</h1>
+    <p class="sub">Тест ортасы / демо. Төмендегі сілтемелерді сервердегі нақты адреске өзгертіңіз.</p>
+    <ul>
+      <li>
+        <!-- APPK: мысалы http://СЕРВЕР:ПОРТ немесе https://appk.домен -->
+        <a class="card" href="http://REPLACE_HOST:REPLACE_APPK_PORT/">
+          <strong>APPK</strong>
+          <span>Ағымдағы жоба (/opt/KGD_APPK)</span>
+        </a>
+      </li>
+      <li>
+        <!-- KPI: compose-та nginx әдетте 8080; сыртта басқа порт қойылуы мүмкін -->
+        <a class="card" href="http://REPLACE_HOST:REPLACE_KPI_PORT/">
+          <strong>KPI (демо)</strong>
+          <span>Рейтинг KPI, тест деректері</span>
+        </a>
+      </li>
+    </ul>
+    <p class="hint">
+      Бұл файл статикалық: <code>REPLACE_*</code> орындарын өзгертіп, nginx <code>root</code> арқылы немесе бөлек портпен беріңіз.
+    </p>
+  </div>
+</body>
+</html>

@@ -43,6 +43,7 @@
 | [dev/onboarding.md](dev/onboarding.md) | Быстрый старт для нового разработчика |
 | [dev/conventions.md](dev/conventions.md) | Соглашения по коду, структура app |
 | [dev/claude_code_guide.md](dev/claude_code_guide.md) | Как работать с Claude Code, экономия токенов |
+| [dev/kgd_materials_and_history.md](dev/kgd_materials_and_history.md) | Локальная папка `old/`: выгрузки КГД, хронология, что где лежит |
 
 ### Спринты
 | Файл | Содержание |

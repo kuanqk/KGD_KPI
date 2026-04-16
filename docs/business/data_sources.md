@@ -1,5 +1,9 @@
 # Источники данных
 
+Выгрузки XML/Excel и переписка с КГД хранятся локально в **`old/`** (каталог в `.gitignore`). Описание папок и хронология: [dev/kgd_materials_and_history.md](../dev/kgd_materials_and_history.md).
+
+**Эталон для KPI Monitor (Олжас):** данные **КГД**, с **возможностью ручной правки** после сверки с ДГД.
+
 ---
 
 ## Маршрутизация ИНИС / ИСНА
@@ -69,10 +73,10 @@ UNA_DEPARTMENT_IDS = {
 
 | Модель | Поле-флаг | Фильтр | Правило исключения |
 |--------|-----------|--------|--------------------|
-| `CompletedInspection` | `is_accepted` | `= True` | KPI 1, 2: после сверки данных ДГД с КГД |
-| `CompletedInspection` | `is_counted` | `= True` | KPI 3: оператор вручную |
+| `CompletedInspection` | `is_accepted` | `= True` | KPI 2: только **принятые после перепроверки** (в Excel ДГД — столбец AT «Взыскание принято»; Олжас 2026) |
+| `CompletedInspection` | `is_counted` | `= True` | KPI 4: только проверки с флагом; **KPI 3** по методологии 2026 считает все завершённые УНА (как KPI 1), без этого фильтра в движке |
 | `ActiveInspection` | `is_counted` | `= True` | KPI 5: исключить уголовные дела, запросы правоохранителей |
-| `AppealDecision` | `is_counted` | `= True` | KPI 6: исключить акты >2 лет до решения комиссии; акты не-УНА |
+| `AppealDecision` | `is_counted` | `= True` | KPI 6: поле может использоваться в ETL; **исключения по сроку >2 лет и по не-УНА сняты с методологии 2026** (Олжас) |
 
 **Кто проставляет флаги:**
 - `CompletedInspection.is_accepted` — вручную после сверки данных ДГД с КГД
@@ -86,59 +90,48 @@ UNA_DEPARTMENT_IDS = {
 
 ## ДФНО
 
-**ДФНО** — дополнительные формы налоговой отчётности. Специальный тип проверок.
+**ДФНО** — дополнительные формы налоговой отчётности.
 
-| KPI | ДФНО |
-|-----|------|
-| KPI 1 (доначисление) | ✅ включается |
-| KPI 2 (взыскание) | ✅ включается |
-| KPI 3 (среднее на проверку) | ❌ **исключается** |
+**С 2026 года (Олжас): ДФНО в KPI не участвует** — отдельные исключения по форме проверки в расчётах за 2026+ не требуются.
 
-```python
-# Для KPI 3:
-.filter(form_type != 'ДФНО')
-```
+| KPI | Примечание (2026+) |
+|-----|---------------------|
+| KPI 1–3 | ДФНО как отдельная категория в KPI **не используется** |
+| KPI 2 (взыскание в КГД) | Строки взыскания с **`de_collection_method_id = 3`** («Дополнительная налоговая отчётность») **не включаются в KPI** — подтверждено **Олжасом** (апрель 2026). Технический фильтр к данным ИСНА; в Excel ДГД отдельный столбец AT про «принято», не про этот метод. |
 
-> ⚠️ **Реальный код ДФНО в БД КГД:** поле `ri_tax_case.de_audit_form_id` (числовой).
-> Справочник `de_audit_form` ещё не получен от Алихана — код ДФНО ⏳ уточнить.
+Полный справочник **`de_audit_form`:** `old/260414/de_audit_form.xml` (17 форм; отдельной строки «ДФНО» нет).
+
+**Взыскание:** в `ri_collected_amount_record` поле **`de_collection_method_id`** → `de_collection_method`; код **3** — не суммировать в KPI 2 при импорте из КГД.
 
 ---
 
 ## Правила исключения для KPI 5 (Проводимые)
 
-Исключить из расчёта проверки:
-- по уголовным делам
-- по запросам правоохранительных органов
+Исключить из расчёта проверки по **уголовным делам** и смежным основаниям (прокуратура, правоохранители, УПК и т.д.).
 
-**Реализация через `de_tax_payer_audit_reason`:**
+**Основной способ (согласовано с Олжасом, апрель 2026):** поле **орган инициирования проверки** — `ri_tax_act.de_audit_initiator_id` → справочник **`de_audit_initiator`** (полная выгрузка: `old/260414/de_audit_initiator.xml`, **40** строк).
 
-Путь: `ri_tax_case → ri_tax_case_audit → ri_tax_case_audit_reason → de_tax_payer_audit_reason`
+Исключать проверки, у которых в справочнике **`code` ∈ { 6, 30, 31, 38, 39, 42, 47 }** (это коды из переписки с Олжасом; на скрине `old/260414/olzhas feedback.jpeg`):
 
-Основания для исключения (4 статьи из 24):
+| `code` | Пример `name_ru` (из XML) |
+|--------|---------------------------|
+| 6 | Органы прокуратуры |
+| 30 | Органы внутренних дел |
+| 31 | Органы национальной безопасности |
+| 38 | по основаниям УПК РК |
+| 39 | По возбужденному уголовному делу |
+| 42 | случаи по уголовно-процессуальному законодательству РК |
+| 47 | Департамент экономических расследований КФМ РК |
 
-| Статья | Описание |
-|--------|----------|
-| пп.7) п.5 ст.144 | Поручение органа уголовного преследования (УПК РК) |
-| пп.9 п.3 ст.144 | Поручение органа уголовного преследования (УПК РК) |
-| пп.4) п.5 ст.144 | Поручения органов прокуратуры |
-| пп.5 п.3 ст.144 | Поручения органов прокуратуры |
+В ETL: `WHERE de_audit_initiator.code NOT IN (6, 30, 31, 38, 39, 42, 47)` (или эквивалент по `id`, если джойн по PK).
 
-> ⚠️ Уточнить у Алихана: это полный список для исключения, или есть ещё?
-> `de_tax_payer_audit_reason_id` конкретных ID пока не получены.
+**Ранее рассматривался путь** через основание проверки: `ri_tax_case_audit_reason → de_tax_payer_audit_reason` (статьи НК/144). Его можно оставить как дополнительную проверку, но **источник истины для KPI 5** — **`de_audit_initiator`** и коды выше.
 
 ---
 
-## Правила исключения для KPI 6 (Обжалования)
+## KPI 6 (Обжалования) — методология 2026
 
-Исключить из расчёта:
-- Акты, завершённые **более чем за 2 года** до даты решения Апелляционной комиссии
-- Акты управлений **кроме УНА**
-
-```python
-# Правило 2 лет:
-from datetime import timedelta
-excluded = (decision_date - completion_date).days > 730
-```
+Исключения «>2 лет до решения комиссии» и «не-УНА» **сняты** (Олжас). В движке: `SUM(amount_cancelled)` по `AppealDecision` с `is_counted=True`; знаменатель — факт KPI 1. Маппинг на таблицы ИСНА (`ri_appeal`, …) — в работе у ETL (см. материалы Алихана в `old/260416/`).
 
 ---
 
@@ -153,14 +146,36 @@ excluded = (decision_date - completion_date).days > 730
 | `ri_tax_case_audit_reason` | `ri_tax_case_audit_id` (FK), `de_tax_payer_audit_reason_id` (FK) | Связка предписание → основание проверки |
 | `de_tax_payer_audit_reason` | `id`, `name_ru` (текст основания по статьям НК/ст.144) | Справочник оснований (24 записи) |
 | `ri_tax_act` | `act_number` (номер акта `…OAP…`), `ri_tax_case_id` (FK) | Акт налоговой проверки |
+| `ri_collected_amount_record` | `amount`, `collection_date`, `re_tp_reg_card_id` (FK), **`de_collection_method_id`** (FK, 3 значения: ПП, переплата, ДФНО) | Фактические взыскания |
 | `ri_tax_act_audit` | `ri_tax_act_audit_id` (PK), `de_audit_form_id`, `approval_date` (**кандидат на `completed_date`**), `audit_period_start`, `audit_period_end`, `audited_period_start`, `audited_period_end` | Детали акта |
 | `re_user` | `user_id`, `iin_bin`, `dgd_id` (FK→ДГД), `dgd_code` (4 символа), `otdel_id`, `otdel_name_ru` | Инспекторы → ДГД → отдел |
 | `de_department` | `id`, `code` (пустой!), `name_ru` | Справочник подразделений (УНА = whitelist 76 ID) |
+| `de_audit_form` | `id`, `code`, `name_ru`, `is_active`, … | Форма аудита / проверки (FK `de_audit_form_id` в деле/акте) |
+| `de_audit_initiator` | `id`, `code`, `name_ru`, … | Орган инициирования (FK `de_audit_initiator_id` на акте; KPI 5 — исключения по `code`) |
+| `de_collection_method` | `id`, `code`, `name_ru`, … | Метод взыскания (`ri_collected_amount_record.de_collection_method_id`; код **3** = доп. отчётность) |
 | справочник ДГД | `id`, `code_nk` (4 символа: "6001" и т.д.), `name_ru` (зашифровано pgcrypto) | **`code_nk` = наш `region_code`** |
 
 > ⚠️ **Аномалия `ri_tax_act_audit`:** у одного акта может быть 2 записи с разными `approval_date`.
 > Пример: акт `620120251015OAP0574` → `ri_tax_act_audit_id` 59335 (2026-02-25) и 26407 (2025-12-29).
 > Правило выбора финальной даты — ⏳ уточнить у Алихана.
+
+### Вьюха завершённых актов (Алихан, 14.04.2026)
+
+**`completed_acts_v2`** — выгрузка: `old/260414/completed_acts_v2.xml`.
+
+В одной строке: акт + **одна строка КБК** (суммы по этому КБК). Все записи **`act_kind = 2`** (окончательный акт).
+
+| Показатель | Значение (файл на диске) |
+|------------|---------------------------|
+| Строк (`DATA_RECORD`) | **1046** |
+| Уникальных `act_number` | **724** |
+| Актов с **>1** строкой (несколько КБК) | **198** (макс. **9** строк на один акт) |
+
+**Колонки (31):** `act_id`, `act_number`, `ri_tax_case_id`, `document_number` (TAC), `iin_bin`, `act_kind`, `prelim_tax_act_id`, `delivery_date`, `de_audit_form_id`, `audit_form_name`, `de_audit_initiator_id`, `name_ru` (инициатор), `creator_tax_org_id`, `code_nk` (ДГД), `de_department_id`, `deprtmnt_name`, `creator_id`, `inspector_id`, `act_create_date`, `act_approval_date`, `data_otkrytia_dela`, `audit_period_start_or_case_delivery_date`, `audit_period_end`, `audited_period_start`, `audited_period_end`, `code` (КБК), `kbk_name`, `accrued`, `penalty`, `koap_fine`, `zan_fine`.
+
+**Повтор `act_number`:** только из‑за **нескольких КБК** на акт; суммы по акту в ETL — **`SUM(accrued)` (± `penalty` по правилам) `GROUP BY act_id` / `act_number`**; штрафы **`koap_fine` / `zan_fine`** — учитывать отдельно по методологии KPI.
+
+**Сверка с Excel ДГД (14.04.2026):** `old/260414/для проверки.xlsx` — сопоставление с вью **`completed_acts_v2`**. По датам, кодам КБК и ДГД и пр. — **1:1** с БД; по налогу/пене расхождения в **3 из 40** ячеек (мелкие); в спорных случаях ориентир — **данные БД**. В файле: жёлтым — акт в Excel **одной** строкой; синим — **несколько** строк КБК; зелёные — ранее уже разобранные кейсы.
 
 ---
 
@@ -172,12 +187,22 @@ excluded = (decision_date - completion_date).days > 730
 |---|---|---|---|---|
 | `region_code` | Код ДГД | `ri_tax_case` | `creator_tax_org_id` → справочник ДГД → `code_nk` | ✅ известно |
 | `management` | Управление (УНА/...) | `ri_tax_case` | `de_department_id IN (UNA_DEPARTMENT_IDS)` | ✅ известно |
-| `form_type` | Тип проверки (ДФНО/...) | `ri_tax_case` | `de_audit_form_id` → `de_audit_form.name_ru` | ⏳ нужен справочник форм |
-| `amount_assessed` | Сумма доначислений | `ri_tax_act` / дочерняя | ⏳ не получено | ⏳ уточнить у Алихана |
-| `amount_collected` | Сумма взысканий | `ri_tax_act` / дочерняя | ⏳ не получено | ⏳ уточнить у Алихана |
+| `form_type` | Тип проверки | `ri_tax_case` | `de_audit_form_id` → `de_audit_form.name_ru` | ✅ справочник `old/260414/de_audit_form.xml` |
+| `amount_assessed` | Сумма доначислений (налог ± пеня по правилам заказчика) | `ri_tax_act_accrued_total` | `SUM(accrued)` по `ri_tax_act_id` и КБК; пеня — ⏳ правило (см. переписку Спринт 18) | ✅ налог по КБК сверен с Excel |
+| `amount_collected` | Сумма взысканий | `ri_collected_amount_record` | `amount`; связь с актом: `re_tp_reg_card_id` → `re_tp_reg_card` ← `ri_tax_act_tax_payer` (`ri_tax_act_id`); фильтр ДФНО — см. ниже | ⚠️ таблица верная, **мало данных** (ввод в ИС с ~октября 2025); см. `old/260413/msg08.txt` |
 | `completed_date` | Дата завершения | `ri_tax_act_audit` | `approval_date` (MAX при дублях) | ⚠️ аномалия — уточнить |
 | `is_accepted` | Флаг принято | — | нет в БД КГД | ✅ вручную оператором |
 | `is_counted` | Флаг учёта | — | нет в БД КГД | ✅ вручную оператором |
+
+**Метод взыскания (`de_collection_method_id`):** колонка в `ri_collected_amount_record`, FK → **`de_collection_method`** (в выгрузке КГД: `isna_data.de_collection_method`; колонки `id`, `code`, `name_kk`, `name_ru`). Три строки:
+
+| `id` / `code` | `name_ru` (как в справочнике) |
+|---|---|
+| 1 | Платежное поручение |
+| 2 | Излишне уплаченная сумма (переплата) |
+| 3 | Дополнительная налоговая отчетность |
+
+Для KPI по взысканию строки с **`de_collection_method_id = 3`** **не учитывать** (взыскание по каналу доп. отчётности / ДФНО). Скрин запроса в БД: `old/260413/answer01.jpeg`.
 
 ### ActiveInspection — проводимые проверки
 
@@ -186,7 +211,7 @@ excluded = (decision_date - completion_date).days > 730
 | `region_code` | Код ДГД | `ri_tax_case` | `creator_tax_org_id` → `code_nk` | ✅ известно |
 | `prescription_date` | Дата вручения предписания | `ri_tax_case` | `delivery_case_date` | ✅ известно (бывает NULL) |
 | `case_type` | Тип дела (уголовное/...) | `de_tax_payer_audit_reason` | `name_ru` (по статье) | ✅ путь найден |
-| `is_counted` | Флаг учёта | вычисляемый | `de_tax_payer_audit_reason_id NOT IN (уголовные, правоохранители)` | ⚠️ нужны конкретные ID |
+| `is_counted` | Флаг учёта | вычисляемый | `de_audit_initiator_id` → `de_audit_initiator.code NOT IN (6,30,31,38,39,42,47)` (KPI 5, список Олжаса) | ✅ коды зафиксированы |
 
 ### AppealDecision — обжалования
 
@@ -209,6 +234,7 @@ excluded = (decision_date - completion_date).days > 730
 | Дата вручения → `delivery_case_date` | ✅ |
 | Исключение уголовных дел (4 статьи) | ✅ путь, ⏳ конкретные ID |
 | Справочник форм проверки (`de_audit_form`) | ⏳ |
-| Суммы доначислений и взысканий | ⏳ |
+| Суммы доначислений (`ri_tax_act_accrued_total`) | ✅ сверка с Excel |
+| Взыскания (`ri_collected_amount_record` + JOIN к акту) | ⚠️ путь подтверждён, объём данных ограничен |
 | Финальный `approval_date` при дублях | ⏳ |
 | Таблица обжалований (KPI 6) | ⏳ |

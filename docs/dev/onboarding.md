@@ -28,8 +28,9 @@ make build && make up && make migrate && make seed && make superuser
 1. **`docs/README.md`** — навигация по документации
 2. **`docs/business/kpi_formulas.md`** — бизнес-логика KPI (обязательно!)
 3. **`docs/business/data_sources.md`** — источники данных, фильтры
-4. **`docs/architecture/overview.md`** — архитектура проекта
-5. **`docs/apps/[нужный app].md`** — контекст конкретного модуля
+4. **`docs/dev/HANDOVER_KPI_STATUS.md`** — что сделано по каждому KPI, открытые вопросы, Алихан / Олжас
+5. **`docs/architecture/overview.md`** — архитектура проекта
+6. **`docs/apps/[нужный app].md`** — контекст конкретного модуля
 
 ---
 

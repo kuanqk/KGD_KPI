@@ -85,10 +85,10 @@ class InitFormulasCommandTest(TestCase):
         f = KPIFormula.objects.get(kpi_type='avg_assessment')
         self.assertEqual(f.config['max_score'], 10)
 
-    def test_kpi3_excludes_dfno(self):
+    def test_kpi3_no_exclude_form_type_in_config(self):
         self._call()
         f = KPIFormula.objects.get(kpi_type='avg_assessment')
-        self.assertEqual(f.config['exclude_form_type'], 'ДФНО')
+        self.assertNotIn('exclude_form_type', f.config)
 
     def test_kpi3_no_score_for_80_to_89(self):
         """Диапазон 80–89% даёт 0 баллов, не 5 — пороги не должны включать value=80 со score>0."""
@@ -138,10 +138,10 @@ class InitFormulasCommandTest(TestCase):
         self.assertEqual(_rule(thresholds, condition='lte', value=1)['score'], 15)
         self.assertEqual(_rule(thresholds, condition='lte', value=2)['score'], 5)
 
-    def test_kpi6_two_year_exclusion_config(self):
+    def test_kpi6_no_two_year_exclusion_in_config(self):
         self._call()
         f = KPIFormula.objects.get(kpi_type='cancelled')
-        self.assertEqual(f.config['exclude_older_than_years'], 2)
+        self.assertNotIn('exclude_older_than_years', f.config)
 
     def test_kpi6_management_filter_una(self):
         self._call()

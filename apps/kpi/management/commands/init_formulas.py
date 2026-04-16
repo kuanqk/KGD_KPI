@@ -55,7 +55,7 @@ INITIAL_FORMULAS = [
         'kpi_type': 'avg_assessment',
         'notes': (
             'KPI 3 — Среднее доначисление на 1 проверку. Макс. 10 баллов. '
-            'Важно: диапазон 80–89% даёт 0 (не 5). ДФНО исключается из суммы и кол-ва.'
+            'Важно: диапазон 80–89% даёт 0 (не 5). Набор проверок = как KPI 1 (Олжас 2026).'
         ),
         'config': {
             'max_score': 10,
@@ -66,7 +66,6 @@ INITIAL_FORMULAS = [
                 {'condition': 'lt',  'value': 90,  'score': 0},   # 80–89% тоже 0!
             ],
             'plan_formula': 'avg_all_dgd_prev_year * 1.20',       # единый порог
-            'exclude_form_type': 'ДФНО',
         },
     },
     {
@@ -103,7 +102,7 @@ INITIAL_FORMULAS = [
         'kpi_type': 'cancelled',
         'notes': (
             'KPI 6 — Удельный вес отменённых сумм. Макс. 15 баллов. '
-            'Исключить: акты >2 лет до решения Апелл. комиссии; акты не-УНА.'
+            'Числитель: отменённые (is_counted); знаменатель: факт KPI 1. Без исключения по сроку до АК (Олжас 2026).'
         ),
         'config': {
             'max_score': 15,
@@ -113,7 +112,6 @@ INITIAL_FORMULAS = [
                 {'condition': 'lte', 'value': 2, 'score': 5},
                 {'condition': 'gt',  'value': 2, 'score': 0},
             ],
-            'exclude_older_than_years': 2,   # акты с датой завершения >2 лет до решения АК
             'management_filter': 'УНА',
         },
     },

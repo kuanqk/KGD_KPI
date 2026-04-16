@@ -11,11 +11,11 @@ KPI Engine — центральный расчётный модуль.
   - Ручные вводы (ManualInput) — kbk_share_pct, staff_count
   - Активные формулы (KPIFormula.get_active)
 
-Важные нюансы из claude.md:
+Важные нюансы из claude.md / Олжас 2026:
   - KPI 3: диапазон 80–89% → 0 баллов (не 5!)
-  - KPI 3: ДФНО исключается из суммы и кол-ва
+  - KPI 3: числитель и знаменатель = тот же набор завершённых УНА, что и KPI 1 (без is_counted / без исключения ДФНО)
   - KPI 5: исключить уголовные дела и запросы правоохран. органов
-  - KPI 6: исключить акты, где (decision_date − completion_date) > 730 дней
+  - KPI 6: отменённые суммы (is_counted=True); без отсечения по сроку до решения комиссии (снято с Excel 2026)
   - КГД (is_summary=True) — ранг не назначается
 """
 import logging
@@ -23,7 +23,7 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal, DivisionByZero, InvalidOperation
 
 from django.db import transaction
-from django.db.models import DurationField, ExpressionWrapper, F, Sum
+from django.db.models import Sum
 
 from apps.core.models import AuditLog
 from apps.etl.models import (
@@ -203,6 +203,8 @@ class KPIEngine:
         KPI 2 — Взыскание (макс. 40 баллов).
 
         Факт  = SUM(amount_collected) WHERE management='УНА', is_accepted=True, period
+        ИСНА: суммы по de_collection_method_id=3 (доп. налоговые отчётности) в KPI не входят —
+        исключать при ETL или в сыром raw; Олжас 2026.
         План  = kbk_share_pct / 100 * SUM(прошлогодних планов взысканий) * 1.20
         Баллы: ≥100%→40, ≥90%→20, ≥80%→10, <80%→0
         """
@@ -246,7 +248,7 @@ class KPIEngine:
         KPI 3 — Среднее доначисление на 1 проверку (макс. 10 баллов).
 
         Среднее_факт = SUM(amount_assessed) / COUNT(inspections)
-                       WHERE management='УНА', is_counted=True, form_type != 'ДФНО'
+                       WHERE management='УНА', период — тот же набор, что KPI 1 (Олжас 2026).
         План = единый порог для всех ДГД = (среднее по всем 20 ДГД за прошлый год) * 1.20
         Баллы: ≥100%→10, ≥90%→5, <90%→0  (80–89% тоже 0!)
         """
@@ -255,10 +257,9 @@ class KPIEngine:
         qs = CompletedInspection.objects.filter(
             region=region,
             management='УНА',
-            is_counted=True,
             completed_date__gte=self.date_from,
             completed_date__lte=self.date_to,
-        ).exclude(form_type='ДФНО')
+        )
 
         agg = qs.aggregate(s=Sum('amount_assessed'))
         total_sum = _to_decimal(agg['s'])
@@ -282,7 +283,7 @@ class KPIEngine:
                 'inspection_count': count,
                 'avg_fact': str(avg_fact) if avg_fact else None,
                 'plan_unified': str(plan) if plan else None,
-                'exclude_form_type': 'ДФНО',
+                'aligned_with_kpi1': True,
                 'management_filter': 'УНА',
             },
         )
@@ -384,27 +385,14 @@ class KPIEngine:
         """
         KPI 6 — Удельный вес отменённых сумм (макс. 15 баллов).
 
-        Отменено = SUM(amount_cancelled) WHERE is_counted=True,
-                   ИСКЛЮЧИТЬ: (decision_date − completion_date) > 730 дней
+        Отменено = SUM(amount_cancelled) WHERE is_counted=True (без отсечения по сроку — Олжас 2026)
         Доначислено = Факт из KPI 1 (для того же региона и периода)
         Доля = Отменено / Доначислено * 100%
         Баллы: ≤1%→15, ≤2%→5, >2%→0
         """
         formula = self._get_formula('cancelled')
 
-        # Исключаем акты, где gap между completion и decision > 2 лет (730 дней)
-        appeals_qs = (
-            AppealDecision.objects
-            .filter(region=region, is_counted=True)
-            .annotate(
-                act_age=ExpressionWrapper(
-                    F('decision_date') - F('completion_date'),
-                    output_field=DurationField(),
-                )
-            )
-            .exclude(act_age__gt=timedelta(days=730))
-        )
-        # TODO Sprint 18: добавить фильтр по management='УНА' после получения schema
+        appeals_qs = AppealDecision.objects.filter(region=region, is_counted=True)
 
         amount_cancelled = _to_decimal(
             appeals_qs.aggregate(s=Sum('amount_cancelled'))['s']
@@ -445,7 +433,6 @@ class KPIEngine:
                 'amount_cancelled': int(amount_cancelled),
                 'amount_assessed_kpi1': int(amount_assessed),
                 'share_pct': str(share_pct),
-                'excluded_older_than_years': 2,
             },
         )
 
@@ -559,10 +546,9 @@ class KPIEngine:
 
         qs = CompletedInspection.objects.filter(
             management='УНА',
-            is_counted=True,
             completed_date__year=self._prev_year,
             region__is_summary=False,
-        ).exclude(form_type='ДФНО')
+        )
 
         total_sum = _to_decimal(qs.aggregate(s=Sum('amount_assessed'))['s'])
         total_count = qs.count()

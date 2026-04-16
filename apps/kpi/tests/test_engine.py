@@ -7,7 +7,7 @@
   - Все 6 KPI с граничными условиями
   - KPI 3 специальный случай: 80–89% = 0 баллов (не 5!)
   - KPI 5: исключение уголовных и правоохранительных дел
-  - KPI 6: исключение актов с интервалом > 2 лет
+  - KPI 6: без отсечения по сроку до решения комиссии (методология 2026)
   - calculate_all: ранжирование, КГД без ранга, пересчёт (update_or_create)
 """
 import itertools
@@ -99,7 +99,6 @@ def make_formulas():
                 {'condition': 'gte', 'value': 90, 'score': 5},
                 {'condition': 'lt',  'value': 90, 'score': 0},  # 80–89% тоже 0!
             ],
-            'exclude_form_type': 'ДФНО',
         }),
         ('workload', {
             'max_score': 15,
@@ -127,7 +126,6 @@ def make_formulas():
                 {'condition': 'lte', 'value': 2, 'score': 5},
                 {'condition': 'gt',  'value': 2, 'score': 0},
             ],
-            'exclude_older_than_years': 2,
             'management_filter': 'УНА',
         }),
     ]
@@ -487,25 +485,24 @@ class KPI3AvgAssessmentTest(TestCase):
         result = self.engine.calc_avg_assessment(self.region)
         self.assertEqual(result.score, 0)
 
-    def test_dfno_excluded_from_sum_and_count(self):
+    def test_dfno_included_like_kpi1(self):
         """
-        ДФНО исключается из суммы И из кол-ва проверок.
-        Без ДФНО: 1 проверка * 90 → среднее=90 → score=5.
-        С ДФНО в числителе/знаменателе — искажение → должны исключить.
+        С 2026: ДФНО не выделяется отдельно — среднее по тем же строкам, что KPI 1.
+        (90+1000)/2 = 545; при плане 1000 → 54.5% → <90 → 0 баллов.
         """
         make_ci(self.region, self.job, amount_assessed=90, form_type='обычная', is_counted=True)
         make_ci(self.region, self.job, amount_assessed=1000, form_type='ДФНО', is_counted=True)
-        result = self.engine.calc_avg_assessment(self.region)
-        # Только 1 обычная проверка → среднее=90 → score=5
-        self.assertEqual(result.score, 5)
-        self.assertEqual(result.calc_details['inspection_count'], 1)
+        with patch.object(self.engine, '_kpi3_plan', return_value=Decimal('1000')):
+            result = self.engine.calc_avg_assessment(self.region)
+        self.assertEqual(result.calc_details['inspection_count'], 2)
+        self.assertEqual(result.score, 0)
 
-    def test_is_counted_false_excluded(self):
-        """is_counted=False не учитывается."""
+    def test_is_counted_false_included_like_kpi1(self):
+        """is_counted=False входит в среднее, как в KPI 1."""
         make_ci(self.region, self.job, amount_assessed=500, is_counted=False)
         result = self.engine.calc_avg_assessment(self.region)
-        self.assertIsNone(result.fact)  # count=0 → avg_fact=None → score=0
-        self.assertEqual(result.score, 0)
+        self.assertEqual(result.calc_details['inspection_count'], 1)
+        self.assertEqual(result.fact, Decimal('500'))
 
     def test_no_data_score_zero(self):
         result = self.engine.calc_avg_assessment(self.region)
@@ -696,26 +693,25 @@ class KPI6CancelledTest(TestCase):
         result = self.engine.calc_cancelled(self.region)
         self.assertEqual(result.score, 0)
 
-    def test_two_year_gap_excluded(self):
+    def test_two_year_gap_included(self):
         """
-        Акт с (decision_date − completion_date) > 730 дней исключается.
-        После исключения — нет отменённых сумм → доля 0% → 15 баллов.
+        С 2026: большой интервал до решения комиссии не исключает сумму из числителя.
+        500/1000 = 50% → >2% → 0 баллов.
         """
         make_appeal(self.region, self.job,
                     amount_cancelled=500, is_counted=True,
                     completion_date=date(2020, 1, 1),
-                    decision_date=date(2022, 2, 1))  # >730 дней
+                    decision_date=date(2022, 2, 1))
         result = self.engine.calc_cancelled(self.region)
-        self.assertEqual(result.score, 15)  # 0/1000 = 0% → 15
+        self.assertEqual(result.score, 0)
 
     def test_within_two_years_included(self):
-        """Акт с интервалом < 2 лет остаётся в выборке."""
+        """Акт с интервалом < 2 лет — по-прежнему в выборке."""
         make_appeal(self.region, self.job,
                     amount_cancelled=30, is_counted=True,
                     completion_date=date(2023, 1, 1),
-                    decision_date=date(2024, 6, 1))  # ~517 дней < 730
+                    decision_date=date(2024, 6, 1))
         result = self.engine.calc_cancelled(self.region)
-        # 30/1000 = 3% → >2 → 0
         self.assertEqual(result.score, 0)
 
     def test_no_assessed_score_15(self):
@@ -1084,12 +1080,10 @@ class KPI3RealDataTest(TestCase):
         self.assertEqual(result.score, 0,
             msg='KPI 3: диапазон 80–89% должен давать 0, а не 5 баллов!')
 
-    def test_dfno_excluded_does_not_inflate_average(self):
+    def test_dfno_included_in_average_with_kpi1(self):
         """
-        ДФНО исключается из числителя и знаменателя.
-        Без ДФНО: 1 проверка × 850 000 → среднее = 850 000 = 85% плана → 0 баллов.
-        Если бы ДФНО не исключалась: (850 000 + 50 000 000) / 2 = 25 425 000 — другой результат.
-        Тест гарантирует, что ДФНО убрана из обоих.
+        Обе проверки (обычная + ДФНО) в числителе и знаменателе, как в KPI 1.
+        Среднее = (850 000 + 50 000 000) / 2 = 25 425 000 тг.
         """
         region  = make_region('30xx', 8)
         plan_tg = Decimal('1000000')
@@ -1104,9 +1098,8 @@ class KPI3RealDataTest(TestCase):
         with patch.object(self.engine, '_kpi3_plan', return_value=plan_tg):
             result = self.engine.calc_avg_assessment(region)
 
-        # Только 1 обычная проверка считается → среднее = 850 000 → 85% → 0 баллов
-        self.assertEqual(result.calc_details['inspection_count'], 1)
-        self.assertEqual(result.score, 0)
+        self.assertEqual(result.calc_details['inspection_count'], 2)
+        self.assertEqual(result.score, 10)
 
 
 # ---------------------------------------------------------------------------
@@ -1279,16 +1272,15 @@ class KPI6RealDataTest(TestCase):
         self.assertEqual(result.score, 15)
         self.assertEqual(float(result.percent), 0.0)
 
-    def test_old_act_over_2years_excluded_score_15(self):
+    def test_old_act_over_2years_included_score_0(self):
         """
-        Акмолинская: акт с интервалом >2 лет (730 дней) до решения комиссии исключается.
-        Если исключить — сумма отменённых = 0 → 0% → 15 баллов.
+        С 2026: длинный интервал до решения комиссии не исключает отменённую сумму.
+        Та же доля, что и в test_akmola_152mln — >2% → 0 баллов.
         """
         region      = make_region('48xx', 13)
         assessed_tg = Decimal(str(int(1_659.84 * 1_000_000)))
 
         self.engine._assessment_facts[region.pk] = assessed_tg
-        # Акт завершён 01.01.2020, решение 01.02.2022 → 762 дня > 730 → ИСКЛЮЧИТЬ
         make_appeal(region, self.job,
                     amount_cancelled=int(152.81 * 1_000_000),
                     is_counted=True,
@@ -1297,8 +1289,7 @@ class KPI6RealDataTest(TestCase):
 
         result = self.engine.calc_cancelled(region)
 
-        self.assertEqual(result.score, 15,
-            msg='Акт старше 2 лет должен быть исключён → 0% → 15 баллов')
+        self.assertEqual(result.score, 0)
 
 
 # ---------------------------------------------------------------------------
