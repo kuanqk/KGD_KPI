@@ -7,7 +7,7 @@
 
 Пример:
     python manage.py load_q1_2026_excel
-    python manage.py load_q1_2026_excel --path old/local_docs/Статистика\\ КЭР\\ РК\\ на\\ 01.04.2026.xlsx
+    python manage.py load_q1_2026_excel --path data/excel/Статистика\\ КЭР\\ РК\\ на\\ 01.04.2026.xlsx
     python manage.py load_q1_2026_excel --clear --calculate
 """
 
@@ -41,7 +41,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         root = Path(__file__).resolve().parents[4]
-        default_xlsx = root / "old" / "local_docs" / "Статистика КЭР РК на 01.04.2026.xlsx"
+        default_xlsx = root / "data" / "excel" / "Статистика КЭР РК на 01.04.2026.xlsx"
         parser.add_argument(
             "--path",
             type=str,
