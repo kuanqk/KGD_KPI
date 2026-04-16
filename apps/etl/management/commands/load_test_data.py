@@ -6,6 +6,7 @@ Management command: load_test_data
 Использование:
     python manage.py load_test_data
     python manage.py load_test_data --clear  # очистить перед загрузкой
+    python manage.py load_test_data --clear --calculate  # + расчёт сводок для дашборда
 """
 
 from django.core.management.base import BaseCommand
@@ -189,6 +190,11 @@ class Command(BaseCommand):
             '--clear',
             action='store_true',
             help='Очистить существующие тестовые данные перед загрузкой',
+        )
+        parser.add_argument(
+            '--calculate',
+            action='store_true',
+            help='После загрузки выполнить расчёт KPI (KPISummary для дашборда)',
         )
 
     def handle(self, *args, **options):
@@ -483,3 +489,13 @@ class Command(BaseCommand):
         self.stdout.write('              Мангистауская, Туркестанская, г.Шымкент,')
         self.stdout.write('              Область Жетісу (90 баллов)')
         self.stdout.write('  ❗ Место 20: Акмолинская (45 баллов)')
+
+        if options.get('calculate'):
+            self.stdout.write('')
+            self.stdout.write('Запуск расчёта KPI (01.01.2025 — 01.01.2026)…')
+            from apps.kpi.services.engine import KPIEngine
+            engine = KPIEngine(date(2025, 1, 1), date(2026, 1, 1), user=None)
+            summaries = engine.calculate_all()
+            self.stdout.write(
+                self.style.SUCCESS(f'  ✓ Сводки KPISummary: {len(summaries)} (дашборд /api/v1/kpi/summary/)')
+            )
