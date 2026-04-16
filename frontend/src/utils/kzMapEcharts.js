@@ -150,6 +150,12 @@ function lngLatToPixel(chart, lng, lat) {
   } catch (_) {
     /* ignore */
   }
+  try {
+    const pt2 = chart.convertToPixel({ seriesIndex: 0 }, [lng, lat])
+    if (pt2 && isFinite(pt2[0]) && isFinite(pt2[1])) return pt2
+  } catch (_) {
+    /* ignore */
+  }
   const w = chart.getWidth()
   const h = chart.getHeight()
   const [[minLng, minLat], [maxLng, maxLat]] = KZ_BOUNDS
@@ -250,23 +256,14 @@ export function createRegionMapOption(mapData, maxVal) {
       show: true,
       seriesIndex: 0,
     },
-    geo: {
-      map: MAP_NAME,
-      roam: true,
-      zoom: 1.05,
-      scaleLimit: { min: 0.85, max: 3 },
-      boundingCoords: KZ_BOUNDS,
-      label: { show: false },
-      itemStyle: {
-        borderColor: '#fff',
-        borderWidth: 1,
-      },
-    },
+    // Одна серия map без отдельного geo: иначе SVG-карта часто даёт белый фон (geo пустой + заливка не видна)
     series: [
       {
         type: 'map',
         map: MAP_NAME,
-        geoIndex: 0,
+        roam: true,
+        zoom: 1.05,
+        scaleLimit: { min: 0.85, max: 3 },
         data: mapData,
         nameProperty: 'name',
         label: { show: false },
