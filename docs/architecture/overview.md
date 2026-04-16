@@ -8,7 +8,7 @@
 | Frontend | Vue 3 (SPA), Pinia, Vue Router, Axios |
 | БД | PostgreSQL 16 |
 | Очереди | Celery + Redis 7 |
-| Карта | Leaflet.js + GeoJSON |
+| Карта | ECharts 5 + SVG (`kzmap.svg`) |
 | Графики | Chart.js |
 | Экспорт | openpyxl (XLSX), WeasyPrint (PDF) |
 | Сборка | Vite |

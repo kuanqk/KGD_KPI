@@ -8,7 +8,7 @@
 - **Pinia** — state management
 - **Vue Router** — навигация
 - **Axios** — HTTP клиент с JWT interceptors
-- **Leaflet.js** — карта Казахстана (GeoJSON)
+- **ECharts 5** — хороплет по областям (SVG `public/kzmap.svg`, см. `utils/kzMapEcharts.js`)
 - **Chart.js** — графики KPI
 - **Vite** — сборка
 
@@ -45,7 +45,8 @@ frontend/src/
 │   ├── KPITable.vue       # Таблица с сортировкой
 │   └── KPIChart.vue       # Chart.js обёртка
 └── utils/
-    └── kpi.js             # KPI_TYPES, KPI_COLORS, KPI_MAX константы
+    ├── kpi.js             # KPI_TYPES, KPI_COLORS, KPI_MAX константы
+    └── kzMapEcharts.js    # Карта РК: registerMap, visualMap, коды ДГД → slug SVG
 ```
 
 ---
@@ -71,13 +72,12 @@ frontend/src/
 
 ---
 
-## Карта Казахастана
+## Карта Казахстана
 
-- **Leaflet.js** + GeoJSON (`frontend/public/kz-regions.geojson`)
-- 20 регионов с центроидами (Point features, keyed по коду ДГД)
-- Цветовая индикация: зелёный ≥80б, жёлтый 50–79б, красный <50б, серый = нет данных
-- Клик по маркеру → `/kpi/:regionCode`
-- RLS: viewer видит только свои регионы подсвеченными
+- **ECharts** `map` + SVG (`frontend/public/kzmap.svg`), заливка по `total_score`, `visualMap` (градиент «Меньше / Больше»)
+- Сопоставление **20 кодов ДГД** (`03xx` …) с slug в SVG — `REGION_CODE_TO_SLUG` в `kzMapEcharts.js`
+- Клик по области → детализация KPI (`/kpi/:regionCode`)
+- Ретро: `kz-regions.geojson` (точки) больше не используется на дашборде
 
 ---
 
