@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import client from '../api/client.js'
+import UserAccount from '../components/UserAccount.vue'
 
 const jobs    = ref([])
 const loading = ref(false)
@@ -99,8 +100,9 @@ function fmtDate(iso) {
 
 <template>
   <div class="view-page">
-    <header class="view-header">
+    <header class="view-header view-header--with-account">
       <h1 class="view-title">Загрузка данных</h1>
+      <UserAccount />
     </header>
 
     <!-- Launch form -->
@@ -187,6 +189,11 @@ function fmtDate(iso) {
   padding: 14px 24px;
 }
 .view-title { font-size: 18px; font-weight: 700; color: var(--color-text); }
+
+.view-header.view-header--with-account .view-title {
+  flex: 1;
+  min-width: 0;
+}
 
 .launch-card {
   background: var(--color-surface);

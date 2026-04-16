@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import client from '../api/client.js'
+import UserAccount from '../components/UserAccount.vue'
 
 const regions    = ref([])
 const loading    = ref(false)
@@ -90,8 +91,9 @@ function toggleRegion(id) {
 
 <template>
   <div class="view-page">
-    <header class="view-header">
+    <header class="view-header view-header--with-account">
       <h1 class="view-title">Расчёт KPI</h1>
+      <UserAccount />
     </header>
 
     <div class="body">
@@ -198,6 +200,11 @@ function toggleRegion(id) {
   padding: 14px 24px;
 }
 .view-title { font-size: 18px; font-weight: 700; color: var(--color-text); }
+
+.view-header.view-header--with-account .view-title {
+  flex: 1;
+  min-width: 0;
+}
 
 .body {
   display: grid;

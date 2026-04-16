@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import client from '../api/client.js'
+import UserAccount from '../components/UserAccount.vue'
 
 const reports  = ref([])
 const regions  = ref([])
@@ -82,8 +83,9 @@ function scoreColor(score) {
 
 <template>
   <div class="view-page">
-    <header class="view-header">
+    <header class="view-header view-header--with-account">
       <h1 class="view-title">История отчётов</h1>
+      <UserAccount />
     </header>
 
     <!-- Filters -->
@@ -182,6 +184,11 @@ function scoreColor(score) {
   padding: 14px 24px;
 }
 .view-title { font-size: 18px; font-weight: 700; color: var(--color-text); }
+
+.view-header.view-header--with-account .view-title {
+  flex: 1;
+  min-width: 0;
+}
 
 .filters-bar {
   background: var(--color-surface);

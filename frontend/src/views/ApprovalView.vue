@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { KPI_TYPES } from '../utils/kpi.js'
 import client from '../api/client.js'
+import UserAccount from '../components/UserAccount.vue'
 
 const reports  = ref([])
 const loading  = ref(true)
@@ -87,7 +88,10 @@ function scoreColor(score) {
   <div class="view-page">
     <header class="view-header">
       <h1 class="view-title">Согласование отчётов</h1>
-      <button class="btn-refresh" @click="fetchReports">↻ Обновить</button>
+      <div class="view-header__right">
+        <button class="btn-refresh" @click="fetchReports">↻ Обновить</button>
+        <UserAccount />
+      </div>
     </header>
 
     <div v-if="error" class="alert-error">{{ error }}</div>
@@ -198,6 +202,12 @@ function scoreColor(score) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+.view-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 .view-title { font-size: 18px; font-weight: 700; color: var(--color-text); }
 .btn-refresh {

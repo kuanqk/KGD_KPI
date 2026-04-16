@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import UserAccount from '../components/UserAccount.vue'
 import KPIScoreCard from '../components/KPIScoreCard.vue'
 import KPITable from '../components/KPITable.vue'
 import KPIChart from '../components/KPIChart.vue'
@@ -248,9 +249,12 @@ watch(selectedRegionCode, () => refresh())
         </span>
       </h1>
 
-      <div class="header-actions">
-        <button class="btn-export" @click="exportXLSX">↓ XLSX</button>
-        <button class="btn-export" @click="exportPDF">↓ PDF</button>
+      <div class="header-right-group">
+        <div class="header-actions">
+          <button class="btn-export" @click="exportXLSX">↓ XLSX</button>
+          <button class="btn-export" @click="exportPDF">↓ PDF</button>
+        </div>
+        <UserAccount />
       </div>
     </header>
 
@@ -377,6 +381,13 @@ watch(selectedRegionCode, () => refresh())
 .view-title__region {
   font-weight: 400;
   color: var(--color-primary);
+}
+
+.header-right-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
 }
 
 .header-actions {

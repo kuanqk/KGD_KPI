@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import client from '../../api/client.js'
+import UserAccount from '../../components/UserAccount.vue'
 
 // ── State ──────────────────────────────────────────────────────────────────────
 const jobs     = ref([])
@@ -103,6 +104,7 @@ function progress(job) {
       <div class="header-right">
         <span v-if="hasRunning" class="auto-badge">⟳ Авто-обновление 10с</span>
         <button class="btn-refresh" @click="fetchJobs()">↻ Обновить</button>
+        <UserAccount />
       </div>
     </header>
 

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import client from '../api/client.js'
+import UserAccount from '../components/UserAccount.vue'
 
 const rows     = ref([])
 const regions  = ref([])
@@ -87,9 +88,12 @@ const totalPages = () => Math.ceil(totalCount.value / PAGE_SIZE)
 
 <template>
   <div class="view-page">
-    <header class="view-header">
-      <h1 class="view-title">Редактор данных</h1>
-      <span class="view-count">Всего записей: {{ totalCount }}</span>
+    <header class="view-header view-header--with-account">
+      <div class="view-header__left">
+        <h1 class="view-title">Редактор данных</h1>
+        <span class="view-count">Всего записей: {{ totalCount }}</span>
+      </div>
+      <UserAccount />
     </header>
 
     <!-- Filters -->
@@ -218,6 +222,14 @@ const totalPages = () => Math.ceil(totalCount.value / PAGE_SIZE)
   display: flex;
   align-items: center;
   gap: 16px;
+}
+.view-header__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 .view-title { font-size: 18px; font-weight: 700; color: var(--color-text); }
 .view-count { font-size: 13px; color: var(--color-text-secondary); }

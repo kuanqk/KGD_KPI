@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { KPI_TYPES } from '../utils/kpi.js'
 import client from '../api/client.js'
+import UserAccount from '../components/UserAccount.vue'
 
 const formulas = ref([])
 const loading  = ref(true)
@@ -88,8 +89,9 @@ function label(kpiType) {
 
 <template>
   <div class="view-page">
-    <header class="view-header">
+    <header class="view-header view-header--with-account">
       <h1 class="view-title">Управление формулами KPI</h1>
+      <UserAccount />
     </header>
 
     <div v-if="error && !showForm" class="alert-error">{{ error }}</div>
@@ -181,6 +183,11 @@ function label(kpiType) {
   padding: 14px 24px;
 }
 .view-title { font-size: 18px; font-weight: 700; color: var(--color-text); }
+
+.view-header.view-header--with-account .view-title {
+  flex: 1;
+  min-width: 0;
+}
 .view-loading { padding: 40px; text-align: center; color: var(--color-text-secondary); }
 .alert-error {
   margin: 12px 24px;

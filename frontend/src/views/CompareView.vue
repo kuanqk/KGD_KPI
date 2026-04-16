@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useAuthStore } from '../stores/auth.js'
+import UserAccount from '../components/UserAccount.vue'
 import KPIChart from '../components/KPIChart.vue'
 import { KPI_COLORS, KPI_TYPES as KPI_TYPE_LIST } from '../utils/kpi.js'
 import client from '../api/client.js'
@@ -161,8 +162,9 @@ function deltaArrow(d) {
 
 <template>
   <div class="view-page">
-    <header class="view-header">
+    <header class="view-header view-header--with-account">
       <h1 class="view-title">Сравнение периодов</h1>
+      <UserAccount />
     </header>
 
     <!-- Period pickers -->
@@ -299,6 +301,11 @@ function deltaArrow(d) {
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   padding: 14px 24px;
+}
+
+.view-header.view-header--with-account .view-title {
+  flex: 1;
+  min-width: 0;
 }
 
 .view-title {

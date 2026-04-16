@@ -1,12 +1,11 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth.js'
 import client from '../api/client.js'
+import UserAccount from '../components/UserAccount.vue'
 import L from 'leaflet'
 
 const router = useRouter()
-const auth = useAuthStore()
 
 // ── State ──────────────────────────────────────────────────────────────────────
 const summaries = ref([])
@@ -182,11 +181,7 @@ function goToRegion(code) {
         <select v-model="selectedYear" class="ctrl-select" @change="onPeriodChange">
           <option v-for="y in years" :key="y" :value="y">{{ y }} (→ {{ y + 1 }})</option>
         </select>
-
-        <div class="user-badge">
-          <span class="user-badge__name">{{ auth.user?.full_name ?? auth.user?.username ?? '–' }}</span>
-          <span class="user-badge__role">{{ auth.userRole ?? 'viewer' }}</span>
-        </div>
+        <UserAccount />
       </div>
     </header>
 
@@ -328,26 +323,6 @@ function goToRegion(code) {
 
 .ctrl-select:focus {
   border-color: var(--color-primary);
-}
-
-.user-badge {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  padding: 4px 10px;
-  background: var(--color-bg);
-  border-radius: var(--radius);
-}
-
-.user-badge__name {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.user-badge__role {
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  text-transform: capitalize;
 }
 
 .alert-error {

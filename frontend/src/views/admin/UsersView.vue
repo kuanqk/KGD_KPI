@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import client from '../../api/client.js'
+import UserAccount from '../../components/UserAccount.vue'
 
 // ── State ──────────────────────────────────────────────────────────────────────
 const users    = ref([])
@@ -190,6 +191,7 @@ function roleLabel(role) {
         />
         <button class="btn-primary" @click="openCreate">+ Создать</button>
       </div>
+      <UserAccount />
     </header>
 
     <div v-if="error && !modal" class="alert-error">{{ error }}</div>

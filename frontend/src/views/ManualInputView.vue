@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import client from '../api/client.js'
+import UserAccount from '../components/UserAccount.vue'
 
 const regions  = ref([])
 const inputs   = ref([])   // ManualInput[] from API
@@ -152,6 +153,7 @@ const kbkValid = computed(() => Math.abs(kbkTotal.value - 100) < 0.01)
           <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
         </select>
       </div>
+      <UserAccount />
     </header>
 
     <div class="desc-bar">
