@@ -47,6 +47,15 @@ export function processKzSvg(svgText) {
   return processed
 }
 
+/** Заливка области по тем же порогам, что легенда над картой и колонка «Итого». */
+export function regionFillColor(score, hasData) {
+  if (!hasData || score == null || Number.isNaN(Number(score))) return '#9CA3AF'
+  const n = Number(score)
+  if (n >= 80) return '#27AE60'
+  if (n >= 50) return '#F39C12'
+  return '#E74C3C'
+}
+
 export function buildMapData(summaries) {
   const byCode = {}
   for (const s of summaries) {
@@ -58,21 +67,19 @@ export function buildMapData(summaries) {
     const s = byCode[code]
     const raw = s?.total_score
     const v = raw != null && !Number.isNaN(Number(raw)) ? Number(raw) : null
+    const hasData = v != null
     mapData.push({
       name: slug,
       value: v != null ? v : 0,
       regionCode: code,
       displayName: s?.region_name_short ?? s?.region_name ?? code,
-      hasData: v != null,
+      hasData,
+      itemStyle: {
+        areaColor: regionFillColor(v, hasData),
+      },
     })
   }
   return mapData
-}
-
-export function getVisualMapMax(mapData) {
-  const vals = mapData.filter((d) => d.hasData).map((d) => d.value)
-  if (!vals.length) return 100
-  return Math.max(100, Math.ceil(Math.max(...vals)))
 }
 
 const MAP_NAME = 'KazakhstanKPI'
@@ -83,16 +90,17 @@ export function getKzMapSvgUrl() {
   return (base.endsWith('/') ? base : `${base}/`) + 'kzmap.svg'
 }
 
-export function createRegionMapOption(mapData, maxVal) {
+export function createRegionMapOption(mapData) {
   return {
     tooltip: {
       trigger: 'item',
       formatter(params) {
         const d = params.data
         if (d && d.hasData) {
+          const dot = regionFillColor(d.value, true)
           return `<div style="padding:8px;">
             <strong>${d.displayName}</strong><br/>
-            <span style="color:#5470c6">●</span> ${Math.round(d.value).toLocaleString('ru-RU')} баллов
+            <span style="color:${dot}">●</span> ${Math.round(d.value).toLocaleString('ru-RU')} баллов
           </div>`
         }
         if (d) {
@@ -100,20 +108,6 @@ export function createRegionMapOption(mapData, maxVal) {
         }
         return `<div style="padding:8px;">${params.name || ''}</div>`
       },
-    },
-    visualMap: {
-      min: 0,
-      max: maxVal,
-      left: 12,
-      top: 12,
-      text: ['Больше', 'Меньше'],
-      textStyle: { fontSize: 12 },
-      calculable: true,
-      orient: 'vertical',
-      inRange: {
-        color: ['#e6f3ff', '#cce7ff', '#99d6ff', '#66c2ff', '#0d81ff', '#0b6edb'],
-      },
-      show: true,
     },
     series: [
       {
@@ -165,10 +159,9 @@ export async function initKzRegionMap(containerEl, summaries, { onRegionClick })
   echarts.registerMap(MAP_NAME, { svg: processed })
 
   const mapData = buildMapData(summaries)
-  const maxVal = getVisualMapMax(mapData)
   // SVG-карта + registerMap({ svg }) надёжнее с renderer svg; иначе на части окружений canvas даёт пустой вид
   const chart = echarts.init(containerEl, null, { renderer: 'svg' })
-  chart.setOption(createRegionMapOption(mapData, maxVal))
+  chart.setOption(createRegionMapOption(mapData))
 
   const doResize = () => chart.resize()
   requestAnimationFrame(() => {
@@ -200,7 +193,6 @@ export async function initKzRegionMap(containerEl, summaries, { onRegionClick })
 export function updateKzRegionMap(chart, summaries) {
   if (!chart) return
   const mapData = buildMapData(summaries)
-  const maxVal = getVisualMapMax(mapData)
-  chart.setOption(createRegionMapOption(mapData, maxVal))
+  chart.setOption(createRegionMapOption(mapData))
   requestAnimationFrame(() => chart.resize())
 }

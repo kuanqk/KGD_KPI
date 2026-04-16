@@ -167,7 +167,7 @@ function goToRegion(code) {
             <span class="legend-item"><span class="legend-dot" style="background:#E74C3C"></span> &lt; 50</span>
             <span class="legend-item"><span class="legend-dot" style="background:#9CA3AF"></span> нет данных</span>
           </span>
-          <span class="map-legend__hint">Заливка регионов — по градиенту; шкала слева на карте. Колонка «Итого» в таблице — те же пороги.</span>
+          <span class="map-legend__hint">Заливка областей на карте — по тем же порогам, что и цвет «Итого» в таблице.</span>
         </div>
 
         <div id="kz-map" class="echarts-map" :class="{ hidden: loading }"></div>
