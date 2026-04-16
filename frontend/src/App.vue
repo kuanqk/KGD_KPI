@@ -16,12 +16,18 @@ async function onLogout() {
 </script>
 
 <template>
-  <div class="app-layout">
-    <div v-if="showUserBar" class="user-bar" role="navigation" aria-label="Учётная запись">
-      <span class="user-bar__name" :title="auth.user?.username ?? ''">
-        {{ auth.user?.username ?? '–' }}
-      </span>
-      <button type="button" class="user-bar__logout" @click="onLogout">
+  <div class="app-layout" :class="{ 'app-layout--with-user': showUserBar }">
+    <div
+      v-if="showUserBar"
+      class="app-user"
+      role="navigation"
+      aria-label="Учётная запись"
+    >
+      <div class="app-user__info">
+        <span class="app-user__name">{{ auth.user?.full_name ?? auth.user?.username ?? '–' }}</span>
+        <span class="app-user__role">{{ auth.userRole ?? 'viewer' }}</span>
+      </div>
+      <button type="button" class="app-user__logout" @click="onLogout">
         Выйти
       </button>
     </div>
@@ -30,39 +36,58 @@ async function onLogout() {
 </template>
 
 <style scoped>
-.user-bar {
+.app-user {
   position: fixed;
-  bottom: 16px;
-  right: 16px;
-  top: auto;
+  top: 14px;
+  right: 24px;
   z-index: 10050;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 6px 12px;
-  background: var(--color-surface);
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
-.user-bar__name {
+.app-user__info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.25;
+}
+.app-user__name {
   font-size: 13px;
-  color: var(--color-text-secondary);
-  max-width: 140px;
+  font-weight: 600;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.user-bar__logout {
-  padding: 5px 14px;
+.app-user__role {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  text-transform: capitalize;
+}
+.app-user__logout {
+  flex-shrink: 0;
+  padding: 6px 14px;
   font-size: 13px;
   border-radius: 6px;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
 }
-.user-bar__logout:hover {
+.app-user__logout:hover {
   background: #f3f4f6;
+}
+</style>
+
+<style>
+/* Жолдаспайтындығы үшін: шапкадағы оң жақ батырмалар мен fixed панель қиылыспасын */
+.app-layout--with-user :deep(.dashboard__header),
+.app-layout--with-user :deep(.view-header) {
+  padding-right: 230px;
 }
 </style>
 
