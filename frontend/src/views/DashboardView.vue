@@ -155,17 +155,22 @@ function goToRegion(code) {
     <!-- Body -->
     <div class="dashboard__body">
       <!-- Map -->
-      <section class="panel">
+      <section class="panel map-panel">
         <div v-if="loading" class="map-placeholder">Загрузка карты…</div>
         <div v-if="mapLoadError" class="map-error">{{ mapLoadError }}</div>
-        <div id="kz-map" class="echarts-map" :class="{ hidden: loading }"></div>
 
-        <div class="map-legend">
-          Карта: градиент по итоговому баллу (шкала на карте). В таблице «Итого»:
-          <span class="legend-dot" style="background:#27AE60"></span> ≥ 80
-          <span class="legend-dot" style="background:#F39C12; margin-left:10px"></span> 50–79
-          <span class="legend-dot" style="background:#E74C3C; margin-left:10px"></span> &lt; 50
+        <div class="map-legend map-legend--top">
+          <span class="map-legend__title">Пороги баллов</span>
+          <span class="map-legend__items">
+            <span class="legend-item"><span class="legend-dot" style="background:#27AE60"></span> ≥ 80</span>
+            <span class="legend-item"><span class="legend-dot" style="background:#F39C12"></span> 50–79</span>
+            <span class="legend-item"><span class="legend-dot" style="background:#E74C3C"></span> &lt; 50</span>
+            <span class="legend-item"><span class="legend-dot" style="background:#9CA3AF"></span> нет данных</span>
+          </span>
+          <span class="map-legend__hint">Заливка регионов — по градиенту; шкала слева на карте. Колонка «Итого» в таблице — те же пороги.</span>
         </div>
+
+        <div id="kz-map" class="echarts-map" :class="{ hidden: loading }"></div>
       </section>
 
       <!-- Rating table -->
@@ -362,14 +367,48 @@ function goToRegion(code) {
   font-size: 13px;
 }
 
-.map-legend {
-  padding: 8px 16px;
+.map-panel {
+  min-height: 0;
+}
+
+.map-legend--top {
+  flex-shrink: 0;
+  padding: 10px 16px 12px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 8px 14px;
   font-size: 12px;
   color: var(--color-text-secondary);
-  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.map-legend__title {
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-right: 4px;
+}
+
+.map-legend__items {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.map-legend__hint {
+  flex: 1 1 100%;
+  font-size: 11px;
+  opacity: 0.9;
+  line-height: 1.35;
 }
 
 .legend-dot {
@@ -377,6 +416,8 @@ function goToRegion(code) {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .rating-panel {

@@ -104,8 +104,8 @@ export function createRegionMapOption(mapData, maxVal) {
     visualMap: {
       min: 0,
       max: maxVal,
-      left: 10,
-      bottom: 24,
+      left: 12,
+      top: 12,
       text: ['Больше', 'Меньше'],
       textStyle: { fontSize: 12 },
       calculable: true,
