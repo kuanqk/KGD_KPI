@@ -57,11 +57,25 @@ class KPISummarySerializer(serializers.ModelSerializer):
     region_display = serializers.StringRelatedField(source='region', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
 
+    # Имена полей для Vue (DashboardView, CompareView, …)
+    region_code = serializers.CharField(source='region.code', read_only=True)
+    region_name = serializers.CharField(source='region.name_ru', read_only=True)
+    region_name_short = serializers.CharField(source='region.name_ru', read_only=True)
+    region_is_summary = serializers.BooleanField(source='region.is_summary', read_only=True)
+    total_score = serializers.IntegerField(source='score_total', read_only=True)
+    kpi_assessment_score = serializers.IntegerField(source='score_assessment', read_only=True)
+    kpi_collection_score = serializers.IntegerField(source='score_collection', read_only=True)
+    kpi_avg_assessment_score = serializers.IntegerField(source='score_avg_assessment', read_only=True)
+    kpi_workload_score = serializers.IntegerField(source='score_workload', read_only=True)
+    kpi_long_inspections_score = serializers.IntegerField(source='score_long_inspections', read_only=True)
+    kpi_cancelled_score = serializers.IntegerField(source='score_cancelled', read_only=True)
+
     class Meta:
         model = KPISummary
         fields = [
             'id',
             'region', 'region_display',
+            'region_code', 'region_name', 'region_name_short', 'region_is_summary',
             'date_from', 'date_to',
             'score_assessment',
             'score_collection',
@@ -70,6 +84,13 @@ class KPISummarySerializer(serializers.ModelSerializer):
             'score_long_inspections',
             'score_cancelled',
             'score_total',
+            'total_score',
+            'kpi_assessment_score',
+            'kpi_collection_score',
+            'kpi_avg_assessment_score',
+            'kpi_workload_score',
+            'kpi_long_inspections_score',
+            'kpi_cancelled_score',
             'rank',
             'status', 'status_display',
             'calculated_at',

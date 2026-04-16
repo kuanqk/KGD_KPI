@@ -178,7 +178,7 @@ function goToRegion(code) {
       </div>
 
       <div class="dashboard__controls">
-        <label class="ctrl-label">Отчётный год (период 01.01—01.01)</label>
+        <label class="ctrl-label">Отчётный период: 01.01.{{ selectedYear }} — 01.01.{{ selectedYear + 1 }}</label>
         <select v-model="selectedYear" class="ctrl-select" @change="onPeriodChange">
           <option v-for="y in years" :key="y" :value="y">{{ y }} (→ {{ y + 1 }})</option>
         </select>
