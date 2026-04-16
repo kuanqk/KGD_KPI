@@ -1,10 +1,14 @@
 /**
  * Карта РК для ECharts: SVG highcharts-стиля + сопоставление кодов ДГД с slug в SVG.
  * Источник SVG: публичная копия kzmap.svg (см. public/kzmap.svg).
+ *
+ * Маркеры позиционируются по центру path региона в SVG (getBBox), затем в псевдо lng/lat
+ * через ту же область, что и geo.boundingCoords — иначе «реальные» lng/lat из geojson
+ * не совпадают с проекцией SVG и все точки схлопываются в один пиксель.
  */
 import * as echarts from 'echarts'
 
-/** Центры регионов [долгота, широта] — как в public/kz-regions.geojson (точки для «круглешков»). */
+/** Запасной центр [lng, lat], если в SVG не нашли path региона */
 export const REGION_CODE_TO_CENTER = {
   '03xx': [69.4, 53.29],
   '06xx': [57.21, 50.28],
@@ -28,7 +32,7 @@ export const REGION_CODE_TO_CENTER = {
   '58xx': [68.27, 43.3],
 }
 
-/** Границы РК для запасного линейного перевода lng/lat → пиксель */
+/** Должен совпадать с geo.boundingCoords — линейная привязка SVG viewBox ↔ geo */
 const KZ_BOUNDS = [
   [46, 40],
   [88, 56],
@@ -76,6 +80,50 @@ export function processKzSvg(svgText) {
   return processed
 }
 
+/**
+ * Центр bbox каждого региона в координатах SVG (viewBox) + размеры viewBox.
+ */
+export function extractSvgRegionCenters(svgText) {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(svgText, 'image/svg+xml')
+  const svg = doc.documentElement
+  const vbParts = svg.getAttribute('viewBox')?.trim().split(/[\s,]+/).map(Number) || [0, 0, 1296, 720]
+  const vbW = vbParts[2] || 1296
+  const vbH = vbParts[3] || 720
+  const centers = {}
+  const slugs = [...new Set(Object.values(REGION_CODE_TO_SLUG))]
+  for (const slug of slugs) {
+    const paths = doc.querySelectorAll(`path[name="${slug}"]`)
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+    for (const p of paths) {
+      try {
+        const b = p.getBBox()
+        minX = Math.min(minX, b.x)
+        minY = Math.min(minY, b.y)
+        maxX = Math.max(maxX, b.x + b.width)
+        maxY = Math.max(maxY, b.y + b.height)
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    if (minX !== Infinity) {
+      centers[slug] = [(minX + maxX) / 2, (minY + maxY) / 2]
+    }
+  }
+  return { centers, vbW, vbH }
+}
+
+/** Центр path в SVG → псевдо [lng, lat] в тех же границах, что у geo (совпадает с проекцией карты) */
+function svgCenterToPseudoLngLat(cx, cy, vbW, vbH) {
+  const [[minLng, minLat], [maxLng, maxLat]] = KZ_BOUNDS
+  const lng = minLng + (cx / vbW) * (maxLng - minLng)
+  const lat = maxLat - (cy / vbH) * (maxLat - minLat)
+  return [lng, lat]
+}
+
 export function buildMapData(summaries) {
   const byCode = {}
   for (const s of summaries) {
@@ -104,7 +152,6 @@ export function getVisualMapMax(mapData) {
   return Math.max(100, Math.ceil(Math.max(...vals)))
 }
 
-/** Цвет маркера как в таблице / старом Leaflet: ≥80 / 50–79 / &lt;50 / нет данных */
 function scoreMarkerColor(score) {
   if (score == null || Number.isNaN(Number(score))) return '#9CA3AF'
   const n = Number(score)
@@ -113,11 +160,19 @@ function scoreMarkerColor(score) {
   return '#E74C3C'
 }
 
-export function buildMarkerOverlayData(mapData) {
+function buildMarkerPoints(mapData, slugCenters, vbW, vbH) {
   return mapData.map((d) => {
-    const center = REGION_CODE_TO_CENTER[d.regionCode]
-    const lng = center ? center[0] : 66.9
-    const lat = center ? center[1] : 48.0
+    const slug = d.name
+    const svgC = slugCenters[slug]
+    let lng
+    let lat
+    if (svgC && vbW > 0 && vbH > 0) {
+      ;[lng, lat] = svgCenterToPseudoLngLat(svgC[0], svgC[1], vbW, vbH)
+    } else {
+      const g = REGION_CODE_TO_CENTER[d.regionCode]
+      lng = g ? g[0] : 66.9
+      lat = g ? g[1] : 48.0
+    }
     const score = d.hasData ? d.value : null
     return {
       lng,
@@ -130,20 +185,7 @@ export function buildMarkerOverlayData(mapData) {
   })
 }
 
-/**
- * Пиксель для [lng,lat] на geo SVG: сначала API координатной системы, иначе convertToPixel, иначе линейно по границам РК.
- */
 function lngLatToPixel(chart, lng, lat) {
-  try {
-    const geo = chart.getModel().getComponent('geo', 0)
-    const cs = geo?.coordinateSystem
-    if (cs && typeof cs.dataToPoint === 'function') {
-      const p = cs.dataToPoint([lng, lat])
-      if (p && isFinite(p[0]) && isFinite(p[1])) return p
-    }
-  } catch (_) {
-    /* ignore */
-  }
   try {
     const pt = chart.convertToPixel({ geoIndex: 0 }, [lng, lat])
     if (pt && isFinite(pt[0]) && isFinite(pt[1])) return pt
@@ -151,8 +193,12 @@ function lngLatToPixel(chart, lng, lat) {
     /* ignore */
   }
   try {
-    const pt2 = chart.convertToPixel({ seriesIndex: 0 }, [lng, lat])
-    if (pt2 && isFinite(pt2[0]) && isFinite(pt2[1])) return pt2
+    const geo = chart.getModel().getComponent('geo', 0)
+    const cs = geo?.coordinateSystem
+    if (cs && typeof cs.dataToPoint === 'function') {
+      const p = cs.dataToPoint([lng, lat])
+      if (p && isFinite(p[0]) && isFinite(p[1])) return p
+    }
   } catch (_) {
     /* ignore */
   }
@@ -164,8 +210,8 @@ function lngLatToPixel(chart, lng, lat) {
   return [x, y]
 }
 
-function buildGraphicMarkers(mapData, chart, onRegionClick) {
-  const list = buildMarkerOverlayData(mapData)
+function buildGraphicMarkers(mapData, chart, onRegionClick, slugCenters, vbW, vbH) {
+  const list = buildMarkerPoints(mapData, slugCenters, vbW, vbH)
   const elements = []
   for (const d of list) {
     const pt = lngLatToPixel(chart, d.lng, d.lat)
@@ -217,7 +263,6 @@ function buildGraphicMarkers(mapData, chart, onRegionClick) {
 
 const MAP_NAME = 'KazakhstanKPI'
 
-/** Публичный ассет; учитывает Vite `base` (если приложение не в корне домена). */
 export function getKzMapSvgUrl() {
   const base = import.meta.env.BASE_URL || '/'
   return (base.endsWith('/') ? base : `${base}/`) + 'kzmap.svg'
@@ -256,14 +301,23 @@ export function createRegionMapOption(mapData, maxVal) {
       show: true,
       seriesIndex: 0,
     },
-    // Одна серия map без отдельного geo: иначе SVG-карта часто даёт белый фон (geo пустой + заливка не видна)
+    geo: {
+      map: MAP_NAME,
+      roam: true,
+      zoom: 1.05,
+      scaleLimit: { min: 0.85, max: 3 },
+      boundingCoords: KZ_BOUNDS,
+      label: { show: false },
+      itemStyle: {
+        borderColor: '#fff',
+        borderWidth: 1,
+      },
+    },
     series: [
       {
         type: 'map',
         map: MAP_NAME,
-        roam: true,
-        zoom: 1.05,
-        scaleLimit: { min: 0.85, max: 3 },
+        geoIndex: 0,
         data: mapData,
         nameProperty: 'name',
         label: { show: false },
@@ -295,30 +349,36 @@ export function createRegionMapOption(mapData, maxVal) {
   }
 }
 
-/**
- * Загружает SVG, регистрирует карту, создаёт инстанс, подписывает клик и resize.
- * @returns {{ chart: echarts.ECharts, dispose: () => void }}
- */
 export async function initKzRegionMap(containerEl, summaries, { onRegionClick }) {
   const res = await fetch(getKzMapSvgUrl())
   if (!res.ok) throw new Error(`kzmap.svg: ${res.status}`)
   const svgText = await res.text()
   const processed = processKzSvg(svgText)
+  const { centers: slugCenters, vbW, vbH } = extractSvgRegionCenters(processed)
+
   echarts.registerMap(MAP_NAME, { svg: processed })
 
   const mapData = buildMapData(summaries)
   const maxVal = getVisualMapMax(mapData)
-  // SVG-карта из registerMap({ svg }) на canvas часто не рисует заливку регионов (пустой фон); graphic-маркеры при этом видны
   const chart = echarts.init(containerEl, null, { renderer: 'svg' })
 
   const state = {
     mapData,
     onRegionClick,
+    slugCenters,
+    vbW,
+    vbH,
   }
 
   const applyMarkers = () => {
-    const graphic = buildGraphicMarkers(state.mapData, chart, (code) => state.onRegionClick(code))
-    // silent: не триггерить лишние finished (иначе возможна петля setOption → finished → setOption)
+    const graphic = buildGraphicMarkers(
+      state.mapData,
+      chart,
+      (code) => state.onRegionClick(code),
+      state.slugCenters,
+      state.vbW,
+      state.vbH
+    )
     chart.setOption({ graphic }, { replaceMerge: ['graphic'], silent: true })
   }
 
