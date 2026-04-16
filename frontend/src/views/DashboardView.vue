@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import client from '../api/client.js'
 import UserAccount from '../components/UserAccount.vue'
-import L from 'leaflet'
+import { initKzRegionMap, updateKzRegionMap } from '../utils/kzMapEcharts.js'
 
 const router = useRouter()
 
@@ -14,8 +14,8 @@ const error = ref(null)
 // Отчётный период как в расчёте KPI: 01.01.Y — 01.01.(Y+1), не календарный месяц
 const selectedYear = ref(new Date().getFullYear() - 1)
 
-let map = null
-let markersLayer = null
+let mapChart = null
+let disposeMap = null
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const years = computed(() => {
@@ -67,7 +67,9 @@ async function loadData() {
       params: { date_from: dateFrom, date_to: dateTo },
     })
     summaries.value = res.data.results ?? res.data
-    updateMapMarkers()
+    if (mapChart) {
+      updateKzRegionMap(mapChart, summaries.value)
+    }
   } catch (err) {
     error.value = err.response?.data?.detail ?? 'Ошибка загрузки данных'
   } finally {
@@ -75,86 +77,32 @@ async function loadData() {
   }
 }
 
-// ── Map ────────────────────────────────────────────────────────────────────────
-function initMap() {
-  map = L.map('kz-map', {
-    center: [48.0, 66.9],
-    zoom: 5,
-    zoomControl: true,
-    attributionControl: false,
-  })
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
-    opacity: 0.45,
-  }).addTo(map)
-
-  markersLayer = L.layerGroup().addTo(map)
-
-  fetch('/kz-regions.geojson')
-    .then(r => r.json())
-    .then(geojson => {
-      map._geojson = geojson
-      updateMapMarkers()
+// ── Map (ECharts + SVG) ────────────────────────────────────────────────────────
+async function initMap() {
+  const el = document.getElementById('kz-map')
+  if (!el) return
+  try {
+    const { chart, dispose } = await initKzRegionMap(el, summaries.value, {
+      onRegionClick: (code) => goToRegion(code),
     })
-}
-
-function updateMapMarkers() {
-  if (!map || !markersLayer || !map._geojson) return
-  markersLayer.clearLayers()
-
-  const summaryByCode = {}
-  for (const s of summaries.value) {
-    summaryByCode[s.region_code] = s
-  }
-
-  for (const feature of map._geojson.features) {
-    const code = feature.properties.code
-    const summary = summaryByCode[code]
-    const score = summary?.total_score ?? null
-    const [lng, lat] = feature.geometry.coordinates
-
-    const color = scoreColor(score)
-    const circle = L.circleMarker([lat, lng], {
-      radius: 20,
-      fillColor: color,
-      color: '#fff',
-      weight: 2,
-      opacity: 1,
-      fillOpacity: 0.85,
-    })
-
-    const label = score != null ? Math.round(score) : '–'
-    circle.bindTooltip(
-      `<strong>${feature.properties.name_short}</strong><br>${label} баллов`,
-      { permanent: false, direction: 'top' }
-    )
-    circle.on('click', () => {
-      router.push({ name: 'kpi-detail', params: { regionCode: code } })
-    })
-    circle.addTo(markersLayer)
-
-    // Score label on top of circle
-    const icon = L.divIcon({
-      className: '',
-      html: `<div class="map-label">${label}</div>`,
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
-    })
-    L.marker([lat, lng], { icon, interactive: false }).addTo(markersLayer)
+    mapChart = chart
+    disposeMap = dispose
+  } catch (e) {
+    console.error(e)
   }
 }
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
 onMounted(async () => {
   await loadData()
-  initMap()
+  await initMap()
 })
 
 onUnmounted(() => {
-  if (map) {
-    map.remove()
-    map = null
+  if (disposeMap) {
+    disposeMap()
+    disposeMap = null
+    mapChart = null
   }
 })
 
@@ -201,13 +149,13 @@ function goToRegion(code) {
       <!-- Map -->
       <section class="panel">
         <div v-if="loading" class="map-placeholder">Загрузка карты…</div>
-        <div id="kz-map" class="leaflet-map" :class="{ hidden: loading }"></div>
+        <div id="kz-map" class="echarts-map" :class="{ hidden: loading }"></div>
 
         <div class="map-legend">
+          Карта: градиент по итоговому баллу (шкала на карте). В таблице «Итого»:
           <span class="legend-dot" style="background:#27AE60"></span> ≥ 80
           <span class="legend-dot" style="background:#F39C12; margin-left:10px"></span> 50–79
           <span class="legend-dot" style="background:#E74C3C; margin-left:10px"></span> &lt; 50
-          <span class="legend-dot" style="background:#9CA3AF; margin-left:10px"></span> нет данных
         </div>
       </section>
 
@@ -375,12 +323,12 @@ function goToRegion(code) {
   flex-direction: column;
 }
 
-.leaflet-map {
+.echarts-map {
   flex: 1;
   min-height: 380px;
 }
 
-.leaflet-map.hidden {
+.echarts-map.hidden {
   display: none;
 }
 
@@ -512,20 +460,5 @@ function goToRegion(code) {
 @keyframes shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-</style>
-
-<style>
-.map-label {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: #fff;
-  pointer-events: none;
-  text-shadow: 0 1px 2px rgba(0,0,0,.5);
 }
 </style>
