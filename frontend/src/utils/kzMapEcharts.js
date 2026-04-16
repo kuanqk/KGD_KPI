@@ -4,7 +4,6 @@
  */
 import * as echarts from 'echarts'
 
-/** Код региона (как в API) → slug класса highcharts-name-* в SVG */
 /** Центры регионов [долгота, широта] — как в public/kz-regions.geojson (точки для «круглешков»). */
 export const REGION_CODE_TO_CENTER = {
   '03xx': [69.4, 53.29],
@@ -108,25 +107,22 @@ function scoreMarkerColor(score) {
   return '#E74C3C'
 }
 
-export function buildScatterOverlayData(mapData) {
+const NO_SCORE_MARKER = -1
+
+/** Данные для custom-серии: lng, lat, score (NO_SCORE_MARKER = нет данных). */
+export function buildMarkerOverlayData(mapData) {
   return mapData.map((d) => {
     const center = REGION_CODE_TO_CENTER[d.regionCode]
     const lng = center ? center[0] : 66.9
     const lat = center ? center[1] : 48.0
     const score = d.hasData ? d.value : null
+    const v = score != null ? Number(score) : NO_SCORE_MARKER
     return {
-      name: d.displayName,
-      value: [lng, lat, score != null ? score : 0],
+      value: [lng, lat, v],
       regionCode: d.regionCode,
       displayName: d.displayName,
       hasData: d.hasData,
       score: score != null ? Number(score) : null,
-      itemStyle: {
-        color: scoreMarkerColor(score),
-        borderColor: '#fff',
-        borderWidth: 2,
-        opacity: 0.92,
-      },
     }
   })
 }
@@ -139,15 +135,60 @@ export function getKzMapSvgUrl() {
   return (base.endsWith('/') ? base : `${base}/`) + 'kzmap.svg'
 }
 
+function renderMarkerGroup(params, api) {
+  const lng = api.value(0)
+  const lat = api.value(1)
+  const raw = api.value(2)
+  const score = raw === NO_SCORE_MARKER ? null : raw
+  const coord = api.coord([lng, lat])
+  if (!coord || !isFinite(coord[0]) || !isFinite(coord[1])) return null
+  const fill = scoreMarkerColor(score)
+  const label = score != null && !Number.isNaN(Number(score)) ? String(Math.round(Number(score))) : '–'
+  const r = 11
+  return {
+    type: 'group',
+    position: coord,
+    children: [
+      {
+        type: 'circle',
+        shape: { cx: 0, cy: 0, r },
+        style: {
+          fill,
+          stroke: '#fff',
+          lineWidth: 2,
+          shadowBlur: 4,
+          shadowColor: 'rgba(0,0,0,0.3)',
+        },
+        z2: 3,
+      },
+      {
+        type: 'text',
+        style: {
+          text: label,
+          x: 0,
+          y: 0,
+          textAlign: 'center',
+          textVerticalAlign: 'middle',
+          fill: '#fff',
+          font: 'bold 11px sans-serif',
+          textShadowColor: 'rgba(0,0,0,0.55)',
+          textShadowBlur: 2,
+        },
+        z2: 4,
+      },
+    ],
+  }
+}
+
 export function createRegionMapOption(mapData, maxVal) {
-  const scatterData = buildScatterOverlayData(mapData)
+  const markerData = buildMarkerOverlayData(mapData)
 
   return {
     tooltip: {
       trigger: 'item',
       formatter(params) {
         const d = params.data
-        if (params.seriesType === 'scatter' && d) {
+        if (params.seriesType === 'custom' && d) {
           if (d.hasData && d.score != null) {
             return `<div style="padding:8px;">
               <strong>${d.displayName}</strong><br/>
@@ -188,6 +229,11 @@ export function createRegionMapOption(mapData, maxVal) {
       roam: true,
       zoom: 1.05,
       scaleLimit: { min: 0.85, max: 3 },
+      // Для overlay по [lng,lat] на SVG-карте задаём границы РК (иначе api.coord даёт NaN — маркеры не рисуются)
+      boundingCoords: [
+        [46, 40],
+        [88, 56],
+      ],
       label: { show: false },
       itemStyle: {
         borderColor: '#fff',
@@ -227,29 +273,15 @@ export function createRegionMapOption(mapData, maxVal) {
         },
       },
       {
-        type: 'scatter',
+        type: 'custom',
         name: 'Баллы',
         coordinateSystem: 'geo',
         geoIndex: 0,
-        zlevel: 2,
-        data: scatterData,
-        symbolSize: 22,
-        label: {
-          show: true,
-          formatter(p) {
-            const s = p.data?.score
-            return s != null ? String(Math.round(s)) : '–'
-          },
-          color: '#fff',
-          fontSize: 11,
-          fontWeight: 700,
-          textShadowColor: 'rgba(0,0,0,0.45)',
-          textShadowBlur: 2,
-        },
-        emphasis: {
-          scale: 1.12,
-          label: { fontSize: 12 },
-        },
+        zlevel: 3,
+        z: 10,
+        silent: false,
+        renderItem: renderMarkerGroup,
+        data: markerData,
       },
     ],
   }
@@ -268,8 +300,8 @@ export async function initKzRegionMap(containerEl, summaries, { onRegionClick })
 
   const mapData = buildMapData(summaries)
   const maxVal = getVisualMapMax(mapData)
-  // SVG-карта + registerMap({ svg }) надёжнее с renderer svg; иначе на части окружений canvas даёт пустой вид
-  const chart = echarts.init(containerEl, null, { renderer: 'svg' })
+  // Canvas: на SVG-renderer серии scatter/custom с geo часто не видны; заливка map по SVG при этом работает
+  const chart = echarts.init(containerEl, null, { renderer: 'canvas' })
   chart.setOption(createRegionMapOption(mapData, maxVal))
 
   const doResize = () => chart.resize()
@@ -280,7 +312,7 @@ export async function initKzRegionMap(containerEl, summaries, { onRegionClick })
 
   chart.on('click', (p) => {
     const code = p.data?.regionCode
-    if (code && (p.seriesType === 'map' || p.seriesType === 'scatter')) onRegionClick(code)
+    if (code && (p.seriesType === 'map' || p.seriesType === 'custom')) onRegionClick(code)
   })
 
   const onWinResize = () => doResize()
