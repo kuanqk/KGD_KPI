@@ -123,8 +123,8 @@ async function compare() {
   searched.value = false
   try {
     const [resA, resB] = await Promise.all([
-      client.get('/kpi/summaries/', { params: { date_from: dateFromA.value, date_to: dateToA.value } }),
-      client.get('/kpi/summaries/', { params: { date_from: dateFromB.value, date_to: dateToB.value } }),
+      client.get('/kpi/summary/', { params: { date_from: dateFromA.value, date_to: dateToA.value } }),
+      client.get('/kpi/summary/', { params: { date_from: dateFromB.value, date_to: dateToB.value } }),
     ])
     summariesA.value = resA.data.results ?? resA.data
     summariesB.value = resB.data.results ?? resB.data

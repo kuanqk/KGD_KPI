@@ -12,8 +12,8 @@ const auth = useAuthStore()
 const summaries = ref([])
 const loading = ref(true)
 const error = ref(null)
-const selectedYear = ref(new Date().getFullYear())
-const selectedMonth = ref(new Date().getMonth() + 1)
+// Отчётный период как в расчёте KPI: 01.01.Y — 01.01.(Y+1), не календарный месяц
+const selectedYear = ref(new Date().getFullYear() - 1)
 
 let map = null
 let markersLayer = null
@@ -23,15 +23,6 @@ const years = computed(() => {
   const current = new Date().getFullYear()
   return [current - 1, current]
 })
-
-const months = [
-  { value: 1, label: 'Январь' }, { value: 2, label: 'Февраль' },
-  { value: 3, label: 'Март' }, { value: 4, label: 'Апрель' },
-  { value: 5, label: 'Май' }, { value: 6, label: 'Июнь' },
-  { value: 7, label: 'Июль' }, { value: 8, label: 'Август' },
-  { value: 9, label: 'Сентябрь' }, { value: 10, label: 'Октябрь' },
-  { value: 11, label: 'Ноябрь' }, { value: 12, label: 'Декабрь' },
-]
 
 // ── Computed ───────────────────────────────────────────────────────────────────
 const rankedSummaries = computed(() =>
@@ -69,11 +60,11 @@ async function loadData() {
   loading.value = true
   error.value = null
   try {
-    const dateFrom = `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}-01`
-    const lastDay = new Date(selectedYear.value, selectedMonth.value, 0).getDate()
-    const dateTo = `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}-${lastDay}`
+    const y = selectedYear.value
+    const dateFrom = `${y}-01-01`
+    const dateTo = `${y + 1}-01-01`
 
-    const res = await client.get('/kpi/summaries/', {
+    const res = await client.get('/kpi/summary/', {
       params: { date_from: dateFrom, date_to: dateTo },
     })
     summaries.value = res.data.results ?? res.data
@@ -187,11 +178,9 @@ function goToRegion(code) {
       </div>
 
       <div class="dashboard__controls">
+        <label class="ctrl-label">Отчётный год (период 01.01—01.01)</label>
         <select v-model="selectedYear" class="ctrl-select" @change="onPeriodChange">
-          <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-        </select>
-        <select v-model="selectedMonth" class="ctrl-select" @change="onPeriodChange">
-          <option v-for="m in months" :key="m.value" :value="m.value">{{ m.label }}</option>
+          <option v-for="y in years" :key="y" :value="y">{{ y }} (→ {{ y + 1 }})</option>
         </select>
 
         <div class="user-badge">
@@ -317,6 +306,13 @@ function goToRegion(code) {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ctrl-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-right: 4px;
 }
 
 .ctrl-select {

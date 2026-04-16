@@ -9,7 +9,7 @@ const error    = ref(null)
 
 const filters = reactive({
   region: '',
-  date_from: new Date().getFullYear() + '-01-01',
+  date_from: (new Date().getFullYear() - 1) + '-01-01',
   date_to:   new Date().toISOString().slice(0, 10),
   status: '',
 })
@@ -44,7 +44,7 @@ async function fetchReports() {
       region_code: filters.region    || undefined,
       status:      filters.status    || undefined,
     }
-    const { data } = await client.get('/kpi/summaries/', { params })
+    const { data } = await client.get('/kpi/summary/', { params })
     reports.value = (data.results ?? data)
       .filter(r => !r.region_is_summary)
       .sort((a, b) => b.date_to?.localeCompare(a.date_to ?? '') ?? 0)

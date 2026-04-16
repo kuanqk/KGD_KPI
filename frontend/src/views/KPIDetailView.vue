@@ -25,7 +25,7 @@ const error        = ref(null)
 // Filters
 const selectedRegionCode = ref(route.params.regionCode ?? null)
 const selectedKpiType    = ref('')   // '' = all
-const dateFrom = ref(firstDayOfYear())
+const dateFrom = ref(firstDayOfReportingPeriod())
 const dateTo   = ref(today())
 
 // ── Constants (from utils) ─────────────────────────────────────────────────────
@@ -39,8 +39,10 @@ function today() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function firstDayOfYear() {
-  return `${new Date().getFullYear()}-01-01`
+/** Начало отчётного периода KPI (01.01.Y при данных за Y—Y+1) */
+function firstDayOfReportingPeriod() {
+  const y = new Date().getFullYear()
+  return `${y - 1}-01-01`
 }
 
 // ── Computed ───────────────────────────────────────────────────────────────────
@@ -168,7 +170,7 @@ async function loadSummaries() {
   try {
     const params = { date_from: dateFrom.value, date_to: dateTo.value }
     const [summariesRes, resultsRes] = await Promise.all([
-      client.get('/kpi/summaries/', { params }),
+      client.get('/kpi/summary/', { params }),
       selectedRegionCode.value
         ? client.get('/kpi/results/', {
             params: { ...params, region_code: selectedRegionCode.value },
@@ -191,7 +193,7 @@ async function loadHistory() {
     // Fetch all summaries for the full year for dynamics chart
     const yearFrom = `${new Date(dateFrom.value).getFullYear()}-01-01`
     const yearTo   = `${new Date(dateTo.value).getFullYear()}-12-31`
-    const { data } = await client.get('/kpi/summaries/', {
+    const { data } = await client.get('/kpi/summary/', {
       params: {
         date_from: yearFrom,
         date_to:   yearTo,
