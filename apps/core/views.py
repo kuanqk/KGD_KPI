@@ -48,7 +48,15 @@ class LoginView(TokenObtainPairView):
     """
 
     def post(self, request, *args, **kwargs):
-        if is_ratelimited(request, key='ip', rate='5/m', method='POST', increment=True):
+        # django-ratelimit 4.x: обязателен аргумент group или fn
+        if is_ratelimited(
+            request,
+            group='auth_login',
+            key='ip',
+            rate='5/m',
+            method='POST',
+            increment=True,
+        ):
             logger.warning(
                 'LoginView: rate limit exceeded ip=%s', _get_ip(request)
             )
