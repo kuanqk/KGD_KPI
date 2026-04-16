@@ -72,25 +72,25 @@
   <div class="wrap">
     <h1>КГД — жобалар / проекты</h1>
     <p class="sub">
-      Демо және тест орталары. Басқа сервер немесе домен болса, төмендегі сілтемелерді
-      <code>index.html</code> ішінде өзгертіңіз.
+      Негізгі бет (:80) — витрина. APPK және KPI бөлек порттарда.
     </p>
     <ul>
       <li>
-        <a class="card" href="http://91.243.71.139/" rel="noopener noreferrer">
-          <strong>APPK</strong>
-          <span>Порт 80 · /opt/KGD_APPK</span>
+        <a class="card" href="http://91.243.71.139:8000/" rel="noopener noreferrer">
+          <strong>APPK (АППК)</strong>
+          <span>Порт 8000 · Docker kgd_appk-web</span>
         </a>
       </li>
       <li>
         <a class="card" href="http://91.243.71.139:8080/" rel="noopener noreferrer">
           <strong>KPI Monitor (демо)</strong>
-          <span>Порт 8080 · /opt/KGD_KPI · тест деректері</span>
+          <span>Порт 8080 · KGD_KPI</span>
         </a>
       </li>
     </ul>
     <p class="hint">
-      Бұл бетті бөлек портта беру үшін мысал: <code>deploy/hub/nginx-hub-8088.conf</code>
+      Порт 80-те осы бетті көрсету: nginx-ке <code>location = /</code> қосыңыз
+      (<code>deploy/hub/nginx-port80-hub.conf.example</code>), содан <code>sudo nginx -t</code>.
     </p>
   </div>
 </body>

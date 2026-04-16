@@ -1,0 +1,15 @@
+# Қосу орны: server { listen 80; server_name 91.243.71.139; ... } ішінде.
+# Бұрынғы location /static/, /media/, location / сақталады; ең үстіне мына екі жолды қосыңыз:
+#
+#   sudo mkdir -p /var/www/kgd-hub
+#   sudo cp /opt/KGD_KPI/deploy/hub/index.html /var/www/kgd-hub/
+
+location = / {
+    root /var/www/kgd-hub;
+    try_files /index.html =404;
+}
+
+# Келесі блоктар сізде бұрыннан бар болуы керек (APPK):
+# location /static/ { ... }
+# location /media/  { ... }
+# location / { proxy_pass http://127.0.0.1:8000; ... }
