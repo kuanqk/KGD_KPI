@@ -72,14 +72,14 @@ const scoreCardData = computed(() => {
     cancelled:        'KPI 6 — Отменённые решения',
   }
   return types.map(t => {
-    const r = regionResults.value.find(x => x.formula_kpi_type === t)
+    const r = regionResults.value.find(x => x.kpi_type === t)
     return {
       type: t,
       title: labels[t],
-      score: r?.score ?? null,
-      fact: r?.fact_value ?? null,
-      plan: r?.plan_value ?? null,
-      pct: r?.pct ?? null,
+      score: r?.score != null ? Number(r.score) : null,
+      fact: r?.fact ?? null,
+      plan: r?.plan ?? null,
+      pct: r?.percent != null ? Number(r.percent) : null,
       maxScore: KPI_MAX[t],
     }
   })
@@ -218,13 +218,65 @@ async function refresh() {
   await loadHistory()
 }
 
-// ── Export stubs (Sprint 14) ───────────────────────────────────────────────────
+// ── Export (сводка KPI = KPISummary id в /reports/{id}/export/…) ───────────────
+function currentRegionSummary() {
+  return summaries.value.find(
+    s =>
+      !s.region_is_summary &&
+      s.region_code === selectedRegionCode.value &&
+      s.date_from === dateFrom.value &&
+      s.date_to === dateTo.value,
+  )
+}
+
+async function downloadExport(kind) {
+  const row = currentRegionSummary()
+  if (!row?.id) {
+    alert(
+      'Нет сводки KPI за выбранный период и регион. Выполните расчёт KPI за этот период, затем повторите экспорт.',
+    )
+    return
+  }
+  const path =
+    kind === 'xlsx' ? `/reports/${row.id}/export/xlsx/` : `/reports/${row.id}/export/pdf/`
+  try {
+    const res = await client.get(path, { responseType: 'blob' })
+    const blob = new Blob([res.data])
+    const cd = res.headers['content-disposition']
+    let filename = kind === 'xlsx' ? 'kpi_report.xlsx' : 'kpi_report.pdf'
+    if (cd) {
+      const m = /filename="([^"]+)"/.exec(cd)
+      if (m) [, filename] = m
+    }
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (err) {
+    let msg = 'Ошибка экспорта'
+    if (err.response?.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text()
+        const j = JSON.parse(text)
+        msg = j.detail ?? msg
+      } catch {
+        /* ignore */
+      }
+    } else if (err.response?.data?.detail) {
+      msg = err.response.data.detail
+    }
+    alert(msg)
+  }
+}
+
 function exportXLSX() {
-  alert('Экспорт XLSX будет реализован в Спринте 14')
+  downloadExport('xlsx')
 }
 
 function exportPDF() {
-  alert('Экспорт PDF будет реализован в Спринте 14')
+  downloadExport('pdf')
 }
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
