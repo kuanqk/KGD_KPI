@@ -28,6 +28,12 @@ export const REGION_CODE_TO_CENTER = {
   '58xx': [68.27, 43.3],
 }
 
+/** Границы РК для запасного линейного перевода lng/lat → пиксель */
+const KZ_BOUNDS = [
+  [46, 40],
+  [88, 56],
+]
+
 export const REGION_CODE_TO_SLUG = {
   '03xx': 'акмолинская',
   '06xx': 'актюбинская',
@@ -107,24 +113,100 @@ function scoreMarkerColor(score) {
   return '#E74C3C'
 }
 
-const NO_SCORE_MARKER = -1
-
-/** Данные для custom-серии: lng, lat, score (NO_SCORE_MARKER = нет данных). */
 export function buildMarkerOverlayData(mapData) {
   return mapData.map((d) => {
     const center = REGION_CODE_TO_CENTER[d.regionCode]
     const lng = center ? center[0] : 66.9
     const lat = center ? center[1] : 48.0
     const score = d.hasData ? d.value : null
-    const v = score != null ? Number(score) : NO_SCORE_MARKER
     return {
-      value: [lng, lat, v],
+      lng,
+      lat,
       regionCode: d.regionCode,
       displayName: d.displayName,
       hasData: d.hasData,
       score: score != null ? Number(score) : null,
     }
   })
+}
+
+/**
+ * Пиксель для [lng,lat] на geo SVG: сначала API координатной системы, иначе convertToPixel, иначе линейно по границам РК.
+ */
+function lngLatToPixel(chart, lng, lat) {
+  try {
+    const geo = chart.getModel().getComponent('geo', 0)
+    const cs = geo?.coordinateSystem
+    if (cs && typeof cs.dataToPoint === 'function') {
+      const p = cs.dataToPoint([lng, lat])
+      if (p && isFinite(p[0]) && isFinite(p[1])) return p
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    const pt = chart.convertToPixel({ geoIndex: 0 }, [lng, lat])
+    if (pt && isFinite(pt[0]) && isFinite(pt[1])) return pt
+  } catch (_) {
+    /* ignore */
+  }
+  const w = chart.getWidth()
+  const h = chart.getHeight()
+  const [[minLng, minLat], [maxLng, maxLat]] = KZ_BOUNDS
+  const x = ((lng - minLng) / (maxLng - minLng)) * w
+  const y = ((maxLat - lat) / (maxLat - minLat)) * h
+  return [x, y]
+}
+
+function buildGraphicMarkers(mapData, chart, onRegionClick) {
+  const list = buildMarkerOverlayData(mapData)
+  const elements = []
+  for (const d of list) {
+    const pt = lngLatToPixel(chart, d.lng, d.lat)
+    if (!pt) continue
+    const fill = scoreMarkerColor(d.score)
+    const label =
+      d.score != null && !Number.isNaN(Number(d.score)) ? String(Math.round(Number(d.score))) : '–'
+    const code = d.regionCode
+    elements.push({
+      type: 'group',
+      id: `kz-marker-${code}`,
+      position: pt,
+      zlevel: 10,
+      z: 10,
+      children: [
+        {
+          type: 'circle',
+          shape: { cx: 0, cy: 0, r: 11 },
+          style: {
+            fill,
+            stroke: '#fff',
+            lineWidth: 2,
+            shadowBlur: 4,
+            shadowColor: 'rgba(0,0,0,0.3)',
+          },
+          cursor: 'pointer',
+          onclick: () => onRegionClick(code),
+        },
+        {
+          type: 'text',
+          style: {
+            text: label,
+            x: 0,
+            y: 0,
+            textAlign: 'center',
+            textVerticalAlign: 'middle',
+            fill: '#fff',
+            font: 'bold 11px sans-serif',
+            textShadowColor: 'rgba(0,0,0,0.55)',
+            textShadowBlur: 2,
+          },
+          silent: true,
+        },
+      ],
+    })
+  }
+  return elements
 }
 
 const MAP_NAME = 'KazakhstanKPI'
@@ -135,68 +217,12 @@ export function getKzMapSvgUrl() {
   return (base.endsWith('/') ? base : `${base}/`) + 'kzmap.svg'
 }
 
-function renderMarkerGroup(params, api) {
-  const lng = api.value(0)
-  const lat = api.value(1)
-  const raw = api.value(2)
-  const score = raw === NO_SCORE_MARKER ? null : raw
-  const coord = api.coord([lng, lat])
-  if (!coord || !isFinite(coord[0]) || !isFinite(coord[1])) return null
-  const fill = scoreMarkerColor(score)
-  const label = score != null && !Number.isNaN(Number(score)) ? String(Math.round(Number(score))) : '–'
-  const r = 11
-  return {
-    type: 'group',
-    position: coord,
-    children: [
-      {
-        type: 'circle',
-        shape: { cx: 0, cy: 0, r },
-        style: {
-          fill,
-          stroke: '#fff',
-          lineWidth: 2,
-          shadowBlur: 4,
-          shadowColor: 'rgba(0,0,0,0.3)',
-        },
-        z2: 3,
-      },
-      {
-        type: 'text',
-        style: {
-          text: label,
-          x: 0,
-          y: 0,
-          textAlign: 'center',
-          textVerticalAlign: 'middle',
-          fill: '#fff',
-          font: 'bold 11px sans-serif',
-          textShadowColor: 'rgba(0,0,0,0.55)',
-          textShadowBlur: 2,
-        },
-        z2: 4,
-      },
-    ],
-  }
-}
-
 export function createRegionMapOption(mapData, maxVal) {
-  const markerData = buildMarkerOverlayData(mapData)
-
   return {
     tooltip: {
       trigger: 'item',
       formatter(params) {
         const d = params.data
-        if (params.seriesType === 'custom' && d) {
-          if (d.hasData && d.score != null) {
-            return `<div style="padding:8px;">
-              <strong>${d.displayName}</strong><br/>
-              <span style="color:${scoreMarkerColor(d.score)}">●</span> ${Math.round(d.score).toLocaleString('ru-RU')} баллов
-            </div>`
-          }
-          return `<div style="padding:8px;"><strong>${d.displayName ?? d.name}</strong><br/>Нет данных</div>`
-        }
         if (d && d.hasData) {
           return `<div style="padding:8px;">
             <strong>${d.displayName}</strong><br/>
@@ -229,11 +255,7 @@ export function createRegionMapOption(mapData, maxVal) {
       roam: true,
       zoom: 1.05,
       scaleLimit: { min: 0.85, max: 3 },
-      // Для overlay по [lng,lat] на SVG-карте задаём границы РК (иначе api.coord даёт NaN — маркеры не рисуются)
-      boundingCoords: [
-        [46, 40],
-        [88, 56],
-      ],
+      boundingCoords: KZ_BOUNDS,
       label: { show: false },
       itemStyle: {
         borderColor: '#fff',
@@ -272,17 +294,6 @@ export function createRegionMapOption(mapData, maxVal) {
           },
         },
       },
-      {
-        type: 'custom',
-        name: 'Баллы',
-        coordinateSystem: 'geo',
-        geoIndex: 0,
-        zlevel: 3,
-        z: 10,
-        silent: false,
-        renderItem: renderMarkerGroup,
-        data: markerData,
-      },
     ],
   }
 }
@@ -300,11 +311,36 @@ export async function initKzRegionMap(containerEl, summaries, { onRegionClick })
 
   const mapData = buildMapData(summaries)
   const maxVal = getVisualMapMax(mapData)
-  // Canvas: на SVG-renderer серии scatter/custom с geo часто не видны; заливка map по SVG при этом работает
-  const chart = echarts.init(containerEl, null, { renderer: 'canvas' })
+  // SVG-карта из registerMap({ svg }) на canvas часто не рисует заливку регионов (пустой фон); graphic-маркеры при этом видны
+  const chart = echarts.init(containerEl, null, { renderer: 'svg' })
+
+  const state = {
+    mapData,
+    onRegionClick,
+  }
+
+  const applyMarkers = () => {
+    const graphic = buildGraphicMarkers(state.mapData, chart, (code) => state.onRegionClick(code))
+    // silent: не триггерить лишние finished (иначе возможна петля setOption → finished → setOption)
+    chart.setOption({ graphic }, { replaceMerge: ['graphic'], silent: true })
+  }
+
+  const scheduleMarkers = () => {
+    requestAnimationFrame(applyMarkers)
+  }
+
   chart.setOption(createRegionMapOption(mapData, maxVal))
 
-  const doResize = () => chart.resize()
+  chart.on('georoam', scheduleMarkers)
+
+  scheduleMarkers()
+  setTimeout(scheduleMarkers, 50)
+  setTimeout(scheduleMarkers, 200)
+
+  const doResize = () => {
+    chart.resize()
+    scheduleMarkers()
+  }
   requestAnimationFrame(() => {
     doResize()
     requestAnimationFrame(doResize)
@@ -312,7 +348,7 @@ export async function initKzRegionMap(containerEl, summaries, { onRegionClick })
 
   chart.on('click', (p) => {
     const code = p.data?.regionCode
-    if (code && (p.seriesType === 'map' || p.seriesType === 'custom')) onRegionClick(code)
+    if (code && p.seriesType === 'map') state.onRegionClick(code)
   })
 
   const onWinResize = () => doResize()
@@ -321,11 +357,15 @@ export async function initKzRegionMap(containerEl, summaries, { onRegionClick })
   const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(doResize) : null
   if (ro) ro.observe(containerEl)
 
+  chart._kzMarkerState = state
+  chart._kzScheduleMarkers = scheduleMarkers
+
   return {
     chart,
     dispose() {
       ro?.disconnect()
       window.removeEventListener('resize', onWinResize)
+      chart.off('georoam', scheduleMarkers)
       chart.dispose()
     },
   }
@@ -335,6 +375,12 @@ export function updateKzRegionMap(chart, summaries) {
   if (!chart) return
   const mapData = buildMapData(summaries)
   const maxVal = getVisualMapMax(mapData)
+  if (chart._kzMarkerState) {
+    chart._kzMarkerState.mapData = mapData
+  }
   chart.setOption(createRegionMapOption(mapData, maxVal))
-  requestAnimationFrame(() => chart.resize())
+  requestAnimationFrame(() => {
+    chart.resize()
+    chart._kzScheduleMarkers?.()
+  })
 }
