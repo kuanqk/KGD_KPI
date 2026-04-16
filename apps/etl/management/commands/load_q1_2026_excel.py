@@ -3,12 +3,19 @@
 «Статистика КЭР РК на 01.04.2026.xlsx».
 
 Период расчёта KPI: 01.01.2026 — 31.03.2026 (включительно).
-Для KPIEngine нужны данные за 2025 год (проверки + KPIResult 2025).
+Для KPIEngine нужны KPIResult за календарный 2025 (из Excel) — см. блок update_or_create.
+
+По умолчанию НЕ дублирует ETL за 2025 год: завершённые проверки «Q1-P25-*» из Excel
+включаются только с флагом --full-excel-2025 (если уже есть load_test_data за 2025 — не нужно).
+
+--clear удаляет только артефакты этой команды (source_id Q1-*, KPI за Q1 2026, KPIResult 2025
+с меткой excel_q1_loader). Полная очистка ETL: только --wipe-all-etl.
 
 Пример:
-    python manage.py load_q1_2026_excel
-    python manage.py load_q1_2026_excel --path data/excel/Статистика\\ КЭР\\ РК\\ на\\ 01.04.2026.xlsx
     python manage.py load_q1_2026_excel --clear --calculate
+    python manage.py load_q1_2026_excel --path data/excel/Статистика\\ КЭР\\ РК\\ на\\ 01.04.2026.xlsx
+    python manage.py load_q1_2026_excel --full-excel-2025 --clear --calculate   # + проверки 2025 из Excel
+    python manage.py load_q1_2026_excel --wipe-all-etl --calculate             # опасно: всё как раньше
 """
 
 from __future__ import annotations
@@ -19,6 +26,7 @@ import random
 from pathlib import Path
 
 from django.core.management.base import BaseCommand
+from django.db.models import Q
 
 from apps.regions.models import Region
 from apps.etl.models import (
@@ -51,7 +59,23 @@ class Command(BaseCommand):
         parser.add_argument(
             "--clear",
             action="store_true",
-            help="Очистить ETL и KPI за 2025–2026 перед загрузкой",
+            help=(
+                "Удалить только строки этой команды (Q1-*, KPI Q1 2026, KPIResult 2025 с меткой "
+                "excel_q1_loader). Не трогает load_test_data и остальной ETL."
+            ),
+        )
+        parser.add_argument(
+            "--wipe-all-etl",
+            action="store_true",
+            help="ОПАСНО: удалить весь ETL и все KPI/KPISummary с date_from.year >= 2025 (старое поведение).",
+        )
+        parser.add_argument(
+            "--full-excel-2025",
+            action="store_true",
+            help=(
+                "Загрузить завершённые проверки 2025 из Excel (Q1-P25-*). "
+                "По умолчанию выкл.: оставить уже загруженный ETL за 2025 (например load_test_data)."
+            ),
         )
         parser.add_argument(
             "--calculate",
@@ -79,15 +103,19 @@ class Command(BaseCommand):
                 self.stdout.write(f"  {code}: {parsed.regions[code].kpi_fact_01_04_2026}")
             return
 
-        if options["clear"]:
-            self.stdout.write("Очистка ETL и KPI (2025+)…")
+        if options["wipe_all_etl"]:
+            self.stdout.write(self.style.WARNING("Полная очистка ETL и KPI (2025+)…"))
             CompletedInspection.objects.all().delete()
             ActiveInspection.objects.all().delete()
             AppealDecision.objects.all().delete()
             ManualInput.objects.all().delete()
             KPIResult.objects.filter(date_from__year__gte=2025).delete()
             KPISummary.objects.filter(date_from__year__gte=2025).delete()
-            self.stdout.write(self.style.SUCCESS("Очищено."))
+            self.stdout.write(self.style.SUCCESS("Очищено полностью."))
+        elif options["clear"]:
+            self.stdout.write("Удаление только артефактов load_q1_2026_excel (Q1-*)…")
+            _clear_q1_artifacts_only()
+            self.stdout.write(self.style.SUCCESS("Очищено (узкий сброс)."))
 
         regions = {r.code: r for r in Region.objects.filter(is_summary=False)}
         if not regions:
@@ -135,47 +163,53 @@ class Command(BaseCommand):
             mi_n += 1
         self.stdout.write(self.style.SUCCESS(f"  ✓ ManualInput: {mi_n}"))
 
-        # ── CompletedInspection 2025 (для KPI 3: prev_year = 2025) ──────────
-        self.stdout.write("CompletedInspection 2025…")
+        # ── CompletedInspection 2025 из Excel (Q1-P25) — только с --full-excel-2025
         c25 = 0
-        for code, row in parsed.regions.items():
-            reg = regions.get(code)
-            if not reg:
-                continue
-            amt_mln = row.donach_01_04_2025_mln
-            if amt_mln is None or amt_mln <= 0:
-                continue
-            count = max(row.check_count, 1)
-            total_tg = int(amt_mln * 1_000_000)
-            k2_mln = row.vzyscano_01_01_2026 or 0
-            collected_tg = int(float(k2_mln) * 1_000_000 * 0.25)
-            per_a = total_tg // count
-            per_c = collected_tg // count if collected_tg else 0
-            batch = []
-            for i in range(count):
-                days_offset = int((i / count) * 365)
-                completed_dt = y2025_start + timedelta(days=min(days_offset, 364))
-                src = "isna" if completed_dt >= date(2025, 7, 9) else "inis"
-                batch.append(
-                    CompletedInspection(
-                        source=src,
-                        source_id=f"Q1-P25-{code}-{i+1:04d}",
-                        region=reg,
-                        management="УНА",
-                        form_type="Тематическая проверка",
-                        completed_date=completed_dt,
-                        amount_assessed=per_a,
-                        amount_collected=per_c,
-                        is_counted=True,
-                        is_accepted=True,
-                        is_anomaly=False,
-                        import_job=import_job,
-                        raw_data={"test": True, "period": "2025", "excel_q1": True},
+        if options["full_excel_2025"]:
+            self.stdout.write("CompletedInspection 2025 (из Excel, Q1-P25-)…")
+            for code, row in parsed.regions.items():
+                reg = regions.get(code)
+                if not reg:
+                    continue
+                amt_mln = row.donach_01_04_2025_mln
+                if amt_mln is None or amt_mln <= 0:
+                    continue
+                count = max(row.check_count, 1)
+                total_tg = int(amt_mln * 1_000_000)
+                k2_mln = row.vzyscano_01_01_2026 or 0
+                collected_tg = int(float(k2_mln) * 1_000_000 * 0.25)
+                per_a = total_tg // count
+                per_c = collected_tg // count if collected_tg else 0
+                batch = []
+                for i in range(count):
+                    days_offset = int((i / count) * 365)
+                    completed_dt = y2025_start + timedelta(days=min(days_offset, 364))
+                    src = "isna" if completed_dt >= date(2025, 7, 9) else "inis"
+                    batch.append(
+                        CompletedInspection(
+                            source=src,
+                            source_id=f"Q1-P25-{code}-{i+1:04d}",
+                            region=reg,
+                            management="УНА",
+                            form_type="Тематическая проверка",
+                            completed_date=completed_dt,
+                            amount_assessed=per_a,
+                            amount_collected=per_c,
+                            is_counted=True,
+                            is_accepted=True,
+                            is_anomaly=False,
+                            import_job=import_job,
+                            raw_data={"test": True, "period": "2025", "excel_q1": True},
+                        )
                     )
-                )
-            CompletedInspection.objects.bulk_create(batch, ignore_conflicts=True)
-            c25 += count
-        self.stdout.write(self.style.SUCCESS(f"  ✓ 2025: {c25}"))
+                CompletedInspection.objects.bulk_create(batch, ignore_conflicts=True)
+                c25 += count
+            self.stdout.write(self.style.SUCCESS(f"  ✓ 2025 (Excel): {c25}"))
+        else:
+            self.stdout.write(
+                "CompletedInspection 2025 (Excel): пропуск — оставляем существующий ETL за 2025. "
+                "Нужны строки из Excel: добавьте --full-excel-2025",
+            )
 
         # ── CompletedInspection 2026 Q1 (факт I / взыскание I) ─────────────
         self.stdout.write("CompletedInspection 2026 Q1…")
@@ -257,6 +291,7 @@ class Command(BaseCommand):
                         "percent": Decimal("100"),
                         "score": 10,
                         "status": "approved",
+                        "calc_details": {"excel_q1_loader": True},
                     },
                 )
                 kr += 1
@@ -274,6 +309,7 @@ class Command(BaseCommand):
                         "percent": Decimal("100"),
                         "score": 40,
                         "status": "approved",
+                        "calc_details": {"excel_q1_loader": True},
                     },
                 )
                 kr += 1
@@ -290,6 +326,25 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.SUCCESS(f"  ✓ KPISummary: {len(summaries)} (GET /api/v1/kpi/summary/?date_from=2026-01-01&date_to=2026-03-31)")
             )
+
+
+def _clear_q1_artifacts_only() -> None:
+    """Удаляет только то, что создаёт load_q1_2026_excel (не load_test_data)."""
+    CompletedInspection.objects.filter(source_id__startswith="Q1-").delete()
+    ActiveInspection.objects.filter(source_id__startswith="Q1-ACT-").delete()
+    AppealDecision.objects.filter(source_id__startswith="Q1-APP-").delete()
+    KPIResult.objects.filter(
+        Q(date_from=date(2026, 1, 1), date_to=date(2026, 3, 31))
+        | Q(
+            date_from=date(2025, 1, 1),
+            date_to=date(2025, 12, 31),
+            calc_details__contains={"excel_q1_loader": True},
+        )
+    ).delete()
+    KPISummary.objects.filter(
+        date_from=date(2026, 1, 1),
+        date_to=date(2026, 3, 31),
+    ).delete()
 
 
 def _load_active(parsed, regions, report_date, import_job) -> int:
