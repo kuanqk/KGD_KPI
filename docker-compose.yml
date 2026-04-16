@@ -96,7 +96,7 @@ services:
     image: nginx:alpine
     ports:
       - "8080:80"
-      - "443:443"
+      # 443 не пробрасываем: на VPS порт занят хостовым nginx; TLS — на хосте или отдельный порт.
     volumes:
       - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
       - static_volume:/static
