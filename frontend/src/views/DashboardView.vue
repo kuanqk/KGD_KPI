@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import client from '../api/client.js'
 import UserAccount from '../components/UserAccount.vue'
@@ -16,6 +16,7 @@ const selectedYear = ref(new Date().getFullYear() - 1)
 
 let mapChart = null
 let disposeMap = null
+const mapLoadError = ref(null)
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const years = computed(() => {
@@ -79,6 +80,7 @@ async function loadData() {
 
 // ── Map (ECharts + SVG) ────────────────────────────────────────────────────────
 async function initMap() {
+  mapLoadError.value = null
   const el = document.getElementById('kz-map')
   if (!el) return
   try {
@@ -89,12 +91,18 @@ async function initMap() {
     disposeMap = dispose
   } catch (e) {
     console.error(e)
+    const msg = e instanceof Error ? e.message : String(e)
+    mapLoadError.value = msg.includes('kzmap') || /fetch|network|Failed to fetch/i.test(msg)
+      ? 'Не удалось загрузить файл карты (kzmap.svg). Проверьте, что /kzmap.svg отдаётся nginx и попадал в сборку (public/kzmap.svg).'
+      : 'Не удалось отобразить карту.'
   }
 }
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
 onMounted(async () => {
   await loadData()
+  // Иначе #kz-map ещё с class hidden (display:none) — ECharts получает 0×0 и карта пустая
+  await nextTick()
   await initMap()
 })
 
@@ -149,6 +157,7 @@ function goToRegion(code) {
       <!-- Map -->
       <section class="panel">
         <div v-if="loading" class="map-placeholder">Загрузка карты…</div>
+        <div v-if="mapLoadError" class="map-error">{{ mapLoadError }}</div>
         <div id="kz-map" class="echarts-map" :class="{ hidden: loading }"></div>
 
         <div class="map-legend">
@@ -326,6 +335,8 @@ function goToRegion(code) {
 .echarts-map {
   flex: 1;
   min-height: 380px;
+  width: 100%;
+  min-width: 0;
 }
 
 .echarts-map.hidden {
@@ -340,6 +351,15 @@ function goToRegion(code) {
   justify-content: center;
   color: var(--color-text-secondary);
   font-size: 14px;
+}
+
+.map-error {
+  padding: 10px 14px;
+  margin: 0;
+  background: #FEF2F2;
+  color: var(--color-danger);
+  border-bottom: 1px solid #FECACA;
+  font-size: 13px;
 }
 
 .map-legend {

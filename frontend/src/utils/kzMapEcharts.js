@@ -77,6 +77,12 @@ export function getVisualMapMax(mapData) {
 
 const MAP_NAME = 'KazakhstanKPI'
 
+/** Публичный ассет; учитывает Vite `base` (если приложение не в корне домена). */
+export function getKzMapSvgUrl() {
+  const base = import.meta.env.BASE_URL || '/'
+  return (base.endsWith('/') ? base : `${base}/`) + 'kzmap.svg'
+}
+
 export function createRegionMapOption(mapData, maxVal) {
   return {
     tooltip: {
@@ -152,7 +158,7 @@ export function createRegionMapOption(mapData, maxVal) {
  * @returns {{ chart: echarts.ECharts, dispose: () => void }}
  */
 export async function initKzRegionMap(containerEl, summaries, { onRegionClick }) {
-  const res = await fetch('/kzmap.svg')
+  const res = await fetch(getKzMapSvgUrl())
   if (!res.ok) throw new Error(`kzmap.svg: ${res.status}`)
   const svgText = await res.text()
   const processed = processKzSvg(svgText)
@@ -160,24 +166,32 @@ export async function initKzRegionMap(containerEl, summaries, { onRegionClick })
 
   const mapData = buildMapData(summaries)
   const maxVal = getVisualMapMax(mapData)
-  const chart = echarts.init(containerEl, null, { renderer: 'canvas' })
+  // SVG-карта + registerMap({ svg }) надёжнее с renderer svg; иначе на части окружений canvas даёт пустой вид
+  const chart = echarts.init(containerEl, null, { renderer: 'svg' })
   chart.setOption(createRegionMapOption(mapData, maxVal))
-  requestAnimationFrame(() => chart.resize())
+
+  const doResize = () => chart.resize()
+  requestAnimationFrame(() => {
+    doResize()
+    requestAnimationFrame(doResize)
+  })
 
   chart.on('click', (p) => {
     const code = p.data?.regionCode
     if (code) onRegionClick(code)
   })
 
-  const onResize = () => {
-    chart.resize()
-  }
-  window.addEventListener('resize', onResize)
+  const onWinResize = () => doResize()
+  window.addEventListener('resize', onWinResize)
+
+  const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(doResize) : null
+  if (ro) ro.observe(containerEl)
 
   return {
     chart,
     dispose() {
-      window.removeEventListener('resize', onResize)
+      ro?.disconnect()
+      window.removeEventListener('resize', onWinResize)
       chart.dispose()
     },
   }
