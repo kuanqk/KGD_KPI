@@ -117,7 +117,10 @@ export function createRegionMapOption(mapData) {
         nameProperty: 'name',
         roam: true,
         scaleLimit: { min: 0.85, max: 3 },
-        zoom: 1.05,
+        zoom: 1.12,
+        /* Чуть выше центра и крупнее — визуально заполняет верхнюю часть панели */
+        layoutCenter: ['50%', '44%'],
+        layoutSize: '96%',
         label: { show: false },
         itemStyle: {
           borderColor: '#fff',

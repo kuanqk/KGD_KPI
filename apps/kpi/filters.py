@@ -42,6 +42,12 @@ class KPISummaryFilter(django_filters.FilterSet):
       ?region=3&date_from=2025-01-01
       ?region_code=62xx
       ?status=submitted
+
+    По умолчанию date_from/date_to — диапазон (gte/lte): подходит для «Истории»,
+    где нужны несколько отчётных периодов в окне дат.
+
+    Для дашборда (один отчётный период) передавайте period_exact=1 — тогда
+    date_from и date_to трактуются как точная пара (и не попадут Q1 + год вместе).
     """
     region_code = django_filters.CharFilter(
         field_name='region__code',
@@ -57,6 +63,27 @@ class KPISummaryFilter(django_filters.FilterSet):
     class Meta:
         model = KPISummary
         fields = ['region', 'region_code', 'date_from', 'date_to', 'status']
+
+    def filter_queryset(self, queryset):
+        data = self.data
+        if not data:
+            return super().filter_queryset(queryset)
+        pe = str(data.get('period_exact', '')).lower() in ('1', 'true', 'yes')
+        df = data.get('date_from')
+        dt = data.get('date_to')
+        if pe and df and dt:
+            queryset = queryset.filter(date_from=df, date_to=dt)
+            if hasattr(data, 'copy'):
+                new_data = data.copy()
+            else:
+                new_data = dict(data)
+            for k in ('date_from', 'date_to', 'period_exact'):
+                try:
+                    new_data.pop(k, None)
+                except TypeError:
+                    pass
+            self.data = new_data
+        return super().filter_queryset(queryset)
 
 
 class KPIFormulaFilter(django_filters.FilterSet):

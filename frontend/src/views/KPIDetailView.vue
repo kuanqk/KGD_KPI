@@ -169,7 +169,7 @@ async function loadSummaries() {
   loading.value = true
   error.value = null
   try {
-    const params = { date_from: dateFrom.value, date_to: dateTo.value }
+    const params = { date_from: dateFrom.value, date_to: dateTo.value, period_exact: 1 }
     const [summariesRes, resultsRes] = await Promise.all([
       client.get('/kpi/summary/', { params }),
       selectedRegionCode.value

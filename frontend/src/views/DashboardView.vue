@@ -65,7 +65,7 @@ async function loadData() {
     const dateTo = `${y + 1}-01-01`
 
     const res = await client.get('/kpi/summary/', {
-      params: { date_from: dateFrom, date_to: dateTo },
+      params: { date_from: dateFrom, date_to: dateTo, period_exact: 1 },
     })
     summaries.value = res.data.results ?? res.data
     if (mapChart) {
@@ -322,10 +322,17 @@ function goToRegion(code) {
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   padding: 20px 24px;
+  /* Обе колонки одной высоты: иначе таблица растягивает строку грида, карта в левой
+     колонке получает огромный flex-контейнер и SVG оказывается внизу по центру. */
+  align-items: stretch;
+  --dashboard-panel-h: min(560px, calc(100vh - 200px));
 }
 
 @media (max-width: 900px) {
-  .dashboard__body { grid-template-columns: 1fr; }
+  .dashboard__body {
+    grid-template-columns: 1fr;
+    --dashboard-panel-h: min(480px, calc(100vh - 240px));
+  }
 }
 
 .panel {
@@ -339,7 +346,7 @@ function goToRegion(code) {
 
 .echarts-map {
   flex: 1;
-  min-height: 380px;
+  min-height: 0;
   width: 100%;
   min-width: 0;
 }
@@ -350,7 +357,7 @@ function goToRegion(code) {
 
 .map-placeholder {
   flex: 1;
-  min-height: 380px;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -369,6 +376,8 @@ function goToRegion(code) {
 
 .map-panel {
   min-height: 0;
+  height: var(--dashboard-panel-h, min(560px, calc(100vh - 200px)));
+  max-height: var(--dashboard-panel-h, min(560px, calc(100vh - 200px)));
 }
 
 .map-legend--top {
@@ -421,7 +430,9 @@ function goToRegion(code) {
 }
 
 .rating-panel {
-  min-height: 420px;
+  min-height: 0;
+  height: var(--dashboard-panel-h, min(560px, calc(100vh - 200px)));
+  max-height: var(--dashboard-panel-h, min(560px, calc(100vh - 200px)));
 }
 
 .section-title {
@@ -435,6 +446,7 @@ function goToRegion(code) {
 .table-wrap {
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .rating-table {
