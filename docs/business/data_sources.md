@@ -189,6 +189,7 @@ UNA_DEPARTMENT_IDS = {
 | `management` | Управление (УНА/...) | `ri_tax_case` | `de_department_id IN (UNA_DEPARTMENT_IDS)` | ✅ известно |
 | `form_type` | Тип проверки | `ri_tax_case` | `de_audit_form_id` → `de_audit_form.name_ru` | ✅ справочник `old/260414/de_audit_form.xml` |
 | `amount_assessed` | Сумма доначислений (налог ± пеня по правилам заказчика) | `ri_tax_act_accrued_total` | `SUM(accrued)` по `ri_tax_act_id` и КБК; пеня — ⏳ правило (см. переписку Спринт 18) | ✅ налог по КБК сверен с Excel |
+| — | Учёт **`reduced`** (уменьшение по итогам проверки, **не** апелляция) | см. цепочку с `tax_accrued` / `penalty_accrued` | для согласования с KPI Excel: **факт доначисления по налогу ≈ `tax_accrued − reduced`** (подтверждено Алиханом и Олжасом, пример в `old/260417/msg11.txt`) | ✅ смысл поля |
 | `amount_collected` | Сумма взысканий | `ri_collected_amount_record` | `amount`; связь с актом: `re_tp_reg_card_id` → `re_tp_reg_card` ← `ri_tax_act_tax_payer` (`ri_tax_act_id`); фильтр ДФНО — см. ниже | ⚠️ таблица верная, **мало данных** (ввод в ИС с ~октября 2025); см. `old/260413/msg08.txt` |
 | `completed_date` | Дата завершения | `ri_tax_act_audit` | `approval_date` (MAX при дублях) | ⚠️ аномалия — уточнить |
 | `is_accepted` | Флаг принято | — | нет в БД КГД | ✅ вручную оператором |
@@ -234,7 +235,7 @@ UNA_DEPARTMENT_IDS = {
 | Дата вручения → `delivery_case_date` | ✅ |
 | Исключение уголовных дел (4 статьи) | ✅ путь, ⏳ конкретные ID |
 | Справочник форм проверки (`de_audit_form`) | ⏳ |
-| Суммы доначислений (`ri_tax_act_accrued_total`) | ✅ сверка с Excel |
+| Суммы доначислений (`ri_tax_act_accrued_total`), поле **`reduced`** | ✅ сверка с Excel; **`tax_accrued − reduced`** для строки налога в KPI Excel (`old/260417/msg11.txt`) |
 | Взыскания (`ri_collected_amount_record` + JOIN к акту) | ⚠️ путь подтверждён, объём данных ограничен |
 | Финальный `approval_date` при дублях | ⏳ |
 | Таблица обжалований (KPI 6) | ⏳ |
