@@ -161,7 +161,8 @@ class KPISummary(models.Model):
 
     class Meta:
         unique_together = ('region', 'date_from', 'date_to')
-        ordering = ['rank', 'region__order']
+        # pk в конце — стабильный порядок для cursor pagination API
+        ordering = ['rank', 'region__order', 'pk']
         verbose_name = _('итог KPI')
         verbose_name_plural = _('итоги KPI')
 

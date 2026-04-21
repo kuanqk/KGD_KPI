@@ -53,7 +53,9 @@ class _ResultPagination(CursorPagination):
 
 class _SummaryPagination(CursorPagination):
     page_size = 50
-    ordering = ('rank', 'region__order')
+    # «Хвост» pk обязателен для cursor pagination — иначе при равных rank/order
+    # строка может дублироваться на границах страниц.
+    ordering = ('rank', 'region__order', 'pk')
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +181,7 @@ class KPISummaryViewSet(
         return (
             super().get_queryset()
             .select_related('region')
-            .order_by('rank', 'region__order')
+            .order_by('rank', 'region__order', 'pk')
         )
 
 

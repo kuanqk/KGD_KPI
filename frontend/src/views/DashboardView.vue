@@ -55,6 +55,44 @@ function kpiVal(summary, key) {
   return score != null ? Math.round(score) : '–'
 }
 
+/** Убираем повторы одной и той же сводки (на случай дублей в ответе API). */
+function dedupeSummaries(list) {
+  const best = new Map()
+  for (const s of list) {
+    const key = `${s.region_code}|${s.date_from}|${s.date_to}`
+    const prev = best.get(key)
+    if (!prev || (s.id != null && prev.id != null && s.id > prev.id)) {
+      best.set(key, s)
+    }
+  }
+  return [...best.values()]
+}
+
+/** Преобразует абсолютный next от DRF в путь для axios (baseURL /api/v1). */
+function kpiSummaryPathFromNext(nextAbs) {
+  const u = new URL(nextAbs, window.location.origin)
+  let p = u.pathname
+  if (p.startsWith('/api/v1')) p = p.slice('/api/v1'.length)
+  return (p.startsWith('/') ? p : `/${p}`) + u.search
+}
+
+/** Cursor pagination: собрать все страницы (иначе в таблице только первые 50 строк). */
+async function fetchAllKpiSummaries(params) {
+  let merged = []
+  let path = '/kpi/summary/'
+  let reqParams = { ...params }
+  for (;;) {
+    const res = await client.get(path, { params: reqParams })
+    const chunk = res.data.results ?? res.data ?? []
+    merged = merged.concat(chunk)
+    const next = res.data.next
+    if (!next) break
+    path = kpiSummaryPathFromNext(next)
+    reqParams = {} // курсор уже в query строке path
+  }
+  return dedupeSummaries(merged)
+}
+
 // ── Data loading ───────────────────────────────────────────────────────────────
 async function loadData() {
   loading.value = true
@@ -64,10 +102,8 @@ async function loadData() {
     const dateFrom = `${y}-01-01`
     const dateTo = `${y + 1}-01-01`
 
-    const res = await client.get('/kpi/summary/', {
-      params: { date_from: dateFrom, date_to: dateTo, period_exact: 1 },
-    })
-    summaries.value = res.data.results ?? res.data
+    const params = { date_from: dateFrom, date_to: dateTo, period_exact: 1 }
+    summaries.value = await fetchAllKpiSummaries(params)
     if (mapChart) {
       updateKzRegionMap(mapChart, summaries.value)
     }

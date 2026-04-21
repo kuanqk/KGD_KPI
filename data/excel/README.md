@@ -31,3 +31,10 @@ docker compose exec web python manage.py apply_excel_kpi_2025 --snapshot kpi20_d
 ```
 
 Старый синтаксис `docker-compose` (v1): `docker-compose exec web ...`
+
+Если в БД оказались **две строки KPISummary** на один регион и период (дашборд дублирует строки):
+
+```bash
+docker compose exec web python manage.py dedupe_kpi_summary --dry-run
+docker compose exec web python manage.py dedupe_kpi_summary
+```
