@@ -16,4 +16,18 @@
 
 После загрузки тестовых данных, если расчёт движка не совпал с Excel:
 
-`python manage.py apply_excel_kpi_2025`
+- Период **2025 → 2026** (лист «KPI» в файле на 01.01.2026):  
+  `python manage.py apply_excel_kpi_2025`  
+  или явно: `--snapshot kpi_20250101`
+
+- Период **2026 → 2027**, таблица как на вкладке **KPI-20 ДГД** в `Статистика КЭР РК на 01.04.2026.xlsx`:  
+  `python manage.py apply_excel_kpi_2025 --snapshot kpi20_dgd_20260401`  
+  (эталон в коде: `apps/kpi/reference_excel_20250101.py`, блок `EXCEL_KPI20_DGD_20260401`).
+
+**Docker** (из каталога с `docker-compose.yml`, сервис `web`):
+
+```bash
+docker compose exec web python manage.py apply_excel_kpi_2025 --snapshot kpi20_dgd_20260401
+```
+
+Старый синтаксис `docker-compose` (v1): `docker-compose exec web ...`
