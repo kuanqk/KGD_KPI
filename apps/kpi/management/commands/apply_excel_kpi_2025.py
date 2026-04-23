@@ -1,12 +1,12 @@
 """
-Проставляет баллы KPISummary из эталонов Excel (лист KPI или KPI-20 ДГД) и пересчитывает ранги.
+Проставляет баллы KPISummary из эталонов (скриншоты / Excel) и пересчитывает ранги.
 
-Примеры:
-  python manage.py apply_excel_kpi_2025
-  python manage.py apply_excel_kpi_2025 --snapshot kpi20_dgd_20260401
+Эталон **old/260423** (скрины correct2025 / correct2026, Word «KPI ошибки»):
+  python manage.py apply_excel_kpi_2025 --snapshot dashboard_2025_260423
+  python manage.py apply_excel_kpi_2025 --snapshot dashboard_2026_260423
 
-Docker (см. docker-compose, сервис web):
-  docker compose exec web python manage.py apply_excel_kpi_2025 --snapshot kpi20_dgd_20260401
+Docker:
+  docker compose exec web python manage.py apply_excel_kpi_2025 --snapshot dashboard_2026_260423
 """
 
 from datetime import date
@@ -16,10 +16,10 @@ from django.db import transaction
 
 from apps.kpi.models import KPISummary
 from apps.kpi.reference_excel_20250101 import (
-    EXCEL_KGD_KPI20_20260401,
-    EXCEL_KGD_SCORES_2025,
-    EXCEL_KPI20_DGD_20260401,
-    EXCEL_KPI_SCORES_2025,
+    REF_DASHBOARD_2025_260423,
+    REF_DASHBOARD_2026_260423,
+    REF_KGD_2025_260423,
+    REF_KGD_2026_260423,
     tuple_total,
 )
 from apps.regions.models import Region
@@ -36,36 +36,48 @@ def _assign_ranks(summaries: list[KPISummary]) -> None:
         summary.save(update_fields=['rank'])
 
 
+def _cfg(label: str, regions, kgd, d0, d1):
+    return {
+        'label': label,
+        'regions': regions,
+        'kgd': kgd,
+        'date_from': d0,
+        'date_to': d1,
+    }
+
+
 SNAPSHOTS = {
-    'kpi_20250101': {
-        'label': '…01.01.2026, лист KPI',
-        'regions': EXCEL_KPI_SCORES_2025,
-        'kgd': EXCEL_KGD_SCORES_2025,
-        'date_from': date(2025, 1, 1),
-        'date_to': date(2026, 1, 1),
-    },
-    'kpi20_dgd_20260401': {
-        'label': '…01.04.2026, вкладка KPI-20 ДГД (баллы на 01.04.2026)',
-        'regions': EXCEL_KPI20_DGD_20260401,
-        'kgd': EXCEL_KGD_KPI20_20260401,
-        'date_from': date(2026, 1, 1),
-        'date_to': date(2027, 1, 1),
-    },
+    'dashboard_2025_260423': _cfg(
+        'old/260423/correct2025.png — дашборд «2025 (→ 2026)»',
+        REF_DASHBOARD_2025_260423,
+        REF_KGD_2025_260423,
+        date(2025, 1, 1),
+        date(2026, 1, 1),
+    ),
+    'dashboard_2026_260423': _cfg(
+        'old/260423/correct2026.png — дашборд «2026 (→ 2027)»',
+        REF_DASHBOARD_2026_260423,
+        REF_KGD_2026_260423,
+        date(2026, 1, 1),
+        date(2027, 1, 1),
+    ),
 }
+SNAPSHOTS['kpi_20250101'] = SNAPSHOTS['dashboard_2025_260423']
+SNAPSHOTS['kpi20_dgd_20260401'] = SNAPSHOTS['dashboard_2026_260423']
 
 
 class Command(BaseCommand):
     help = (
-        'Записывает баллы KPI из эталона Excel в KPISummary и назначает ранги. '
-        'Снимок kpi20_dgd_20260401 соответствует дашборду «2026 (→ 2027)».'
+        'Записывает баллы KPI из эталона в KPISummary и назначает ранги. '
+        'См. old/260423 и apps/kpi/reference_excel_20250101.py.'
     )
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--snapshot',
             choices=list(SNAPSHOTS.keys()),
-            default='kpi_20250101',
-            help='Эталон: kpi_20250101 (период 2025→2026) или kpi20_dgd_20260401 (2026→2027, лист KPI-20 ДГД)',
+            default='dashboard_2025_260423',
+            help='Эталон: dashboard_2025_260423 | dashboard_2026_260423 (алиасы: kpi_20250101, kpi20_dgd_20260401)',
         )
 
     @transaction.atomic

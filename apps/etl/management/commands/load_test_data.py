@@ -483,12 +483,11 @@ class Command(BaseCommand):
         self.stdout.write('  >>> engine = KPIEngine(date(2025,1,1), date(2026,1,1), user=None)')
         self.stdout.write('  >>> results = engine.calculate_all()')
         self.stdout.write('')
-        self.stdout.write('Эталон таблицы КГД (лист «KPI», Статистика КЭР на 01.01.2026):')
-        self.stdout.write('  🥇 Место 1: Жамбылская, Кызылординская (100)')
-        self.stdout.write('  Место 3 (90): Костанайская, Абай, Атырау, Павлодар, Шымкент, ВКО, Мангистау, …')
-        self.stdout.write('  ❗ Место 20: Область Ұлытау (45)')
-        self.stdout.write('Если движок расходится с Excel — применить эталон:')
-        self.stdout.write('  python manage.py apply_excel_kpi_2025')
+        self.stdout.write('Эталон дашборда (скрин old/260423/correct2025.png) после apply:')
+        self.stdout.write('  🥇 Место 1: Алматинская, Атырауская (100) — см. apply_excel_kpi_2025 --snapshot dashboard_2025_260423')
+        self.stdout.write('Сверка расхождений по K1…K6: old/260423/KPI ошибки 2025/2026.docx')
+        self.stdout.write('  python manage.py apply_excel_kpi_2025 --snapshot dashboard_2025_260423')
+        self.stdout.write('  python manage.py apply_excel_kpi_2025 --snapshot dashboard_2026_260423')
 
         if options.get('calculate'):
             self.stdout.write('')
