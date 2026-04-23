@@ -40,3 +40,11 @@ docker compose exec web python manage.py apply_excel_kpi_2025 --snapshot dashboa
 docker compose exec web python manage.py dedupe_kpi_summary --dry-run
 docker compose exec web python manage.py dedupe_kpi_summary
 ```
+
+**Полный сброс за 2026→2027** (удалить все сводки за период и заново проставить эталон — если `dedupe` не помог или нужна чистая перезаливка):
+
+```bash
+docker compose exec web python manage.py delete_kpi_summary_period --date-from 2026-01-01 --date-to 2027-01-01 --dry-run
+docker compose exec web python manage.py delete_kpi_summary_period --date-from 2026-01-01 --date-to 2027-01-01
+docker compose exec web python manage.py apply_excel_kpi_2025 --snapshot dashboard_2026_260423
+```

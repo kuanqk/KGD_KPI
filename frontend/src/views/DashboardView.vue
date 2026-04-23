@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import client from '../api/client.js'
 import UserAccount from '../components/UserAccount.vue'
 import { initKzRegionMap, updateKzRegionMap } from '../utils/kzMapEcharts.js'
+import { fetchAllKpiSummaries } from '../utils/fetchKpiSummaryPages.js'
 import {
   scoreBandColor,
   SCORE_COLOR_GREEN,
@@ -57,44 +58,6 @@ function rankClass(rank) {
 function kpiVal(summary, key) {
   const score = summary[`kpi_${key}_score`]
   return score != null ? Math.round(score) : '–'
-}
-
-/** Убираем повторы одной и той же сводки (на случай дублей в ответе API). */
-function dedupeSummaries(list) {
-  const best = new Map()
-  for (const s of list) {
-    const key = `${s.region_code}|${s.date_from}|${s.date_to}`
-    const prev = best.get(key)
-    if (!prev || (s.id != null && prev.id != null && s.id > prev.id)) {
-      best.set(key, s)
-    }
-  }
-  return [...best.values()]
-}
-
-/** Преобразует абсолютный next от DRF в путь для axios (baseURL /api/v1). */
-function kpiSummaryPathFromNext(nextAbs) {
-  const u = new URL(nextAbs, window.location.origin)
-  let p = u.pathname
-  if (p.startsWith('/api/v1')) p = p.slice('/api/v1'.length)
-  return (p.startsWith('/') ? p : `/${p}`) + u.search
-}
-
-/** Cursor pagination: собрать все страницы (иначе в таблице только первые 50 строк). */
-async function fetchAllKpiSummaries(params) {
-  let merged = []
-  let path = '/kpi/summary/'
-  let reqParams = { ...params }
-  for (;;) {
-    const res = await client.get(path, { params: reqParams })
-    const chunk = res.data.results ?? res.data ?? []
-    merged = merged.concat(chunk)
-    const next = res.data.next
-    if (!next) break
-    path = kpiSummaryPathFromNext(next)
-    reqParams = {} // курсор уже в query строке path
-  }
-  return dedupeSummaries(merged)
 }
 
 // ── Data loading ───────────────────────────────────────────────────────────────

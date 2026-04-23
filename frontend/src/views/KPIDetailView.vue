@@ -8,6 +8,7 @@ import KPITable from '../components/KPITable.vue'
 import KPIChart from '../components/KPIChart.vue'
 import client from '../api/client.js'
 import { KPI_COLORS, KPI_TYPES as KPI_TYPE_LIST, KPI_MAX } from '../utils/kpi.js'
+import { fetchAllKpiSummaries, defaultDashboardReportingYear } from '../utils/fetchKpiSummaryPages.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -26,25 +27,16 @@ const error        = ref(null)
 // Filters
 const selectedRegionCode = ref(route.params.regionCode ?? null)
 const selectedKpiType    = ref('')   // '' = all
-const dateFrom = ref(firstDayOfReportingPeriod())
-const dateTo   = ref(today())
+// Как дашборд: полный отчётный год 01.01.Y — 01.01.(Y+1), иначе period_exact=1 не находит сводок
+const _defaultY = defaultDashboardReportingYear()
+const dateFrom = ref(`${_defaultY}-01-01`)
+const dateTo   = ref(`${_defaultY + 1}-01-01`)
 
 // ── Constants (from utils) ─────────────────────────────────────────────────────
 const KPI_TYPES = [
   { value: '', label: 'Все KPI' },
   ...KPI_TYPE_LIST,
 ]
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-function today() {
-  return new Date().toISOString().slice(0, 10)
-}
-
-/** Начало отчётного периода KPI (01.01.Y при данных за Y—Y+1) */
-function firstDayOfReportingPeriod() {
-  const y = new Date().getFullYear()
-  return `${y - 1}-01-01`
-}
 
 // ── Computed ───────────────────────────────────────────────────────────────────
 const visibleRegions = computed(() => {
@@ -170,15 +162,15 @@ async function loadSummaries() {
   error.value = null
   try {
     const params = { date_from: dateFrom.value, date_to: dateTo.value, period_exact: 1 }
-    const [summariesRes, resultsRes] = await Promise.all([
-      client.get('/kpi/summary/', { params }),
+    const [summaryList, resultsRes] = await Promise.all([
+      fetchAllKpiSummaries(params),
       selectedRegionCode.value
         ? client.get('/kpi/results/', {
             params: { ...params, region_code: selectedRegionCode.value },
           })
         : Promise.resolve({ data: { results: [] } }),
     ])
-    summaries.value = summariesRes.data.results ?? summariesRes.data
+    summaries.value = summaryList
     regionResults.value = resultsRes.data.results ?? resultsRes.data
   } catch (err) {
     error.value = err.response?.data?.detail ?? 'Ошибка загрузки данных'
@@ -285,6 +277,15 @@ onMounted(async () => {
   await loadSummaries()
   await loadHistory()
 })
+
+watch(
+  () => route.params.regionCode,
+  (code) => {
+    if (code && code !== selectedRegionCode.value) {
+      selectedRegionCode.value = code
+    }
+  },
+)
 
 watch(selectedRegionCode, () => refresh())
 </script>
