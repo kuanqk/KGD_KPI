@@ -4,6 +4,15 @@ import { useRouter } from 'vue-router'
 import client from '../api/client.js'
 import UserAccount from '../components/UserAccount.vue'
 import { initKzRegionMap, updateKzRegionMap } from '../utils/kzMapEcharts.js'
+import {
+  scoreBandColor,
+  SCORE_COLOR_GREEN,
+  SCORE_COLOR_GREEN_DARK,
+  SCORE_COLOR_NO_DATA,
+  SCORE_COLOR_ORANGE,
+  SCORE_COLOR_RED,
+  SCORE_COLOR_YELLOW,
+} from '../utils/kpiScoreColors.js'
 
 const router = useRouter()
 
@@ -36,12 +45,7 @@ const kgdSummary = computed(() =>
 )
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-function scoreColor(score) {
-  if (score == null) return '#9CA3AF'
-  if (score >= 80) return '#27AE60'
-  if (score >= 50) return '#F39C12'
-  return '#E74C3C'
-}
+const scoreColor = scoreBandColor
 
 function rankClass(rank) {
   if (rank === 1) return 'rank-gold'
@@ -183,7 +187,12 @@ function goToRegion(code) {
     <!-- КГД total -->
     <div v-if="kgdSummary" class="kgd-bar">
       <span class="kgd-bar__label">КГД (итого по РК)</span>
-      <span class="kgd-bar__score">
+      <span
+        class="kgd-bar__score"
+        :style="{
+          color: kgdSummary.total_score != null ? scoreColor(kgdSummary.total_score) : SCORE_COLOR_NO_DATA,
+        }"
+      >
         {{ kgdSummary.total_score != null ? Math.round(kgdSummary.total_score) + ' баллов' : 'нет данных' }}
       </span>
     </div>
@@ -198,12 +207,14 @@ function goToRegion(code) {
         <div class="map-legend map-legend--top">
           <span class="map-legend__title">Пороги баллов</span>
           <span class="map-legend__items">
-            <span class="legend-item"><span class="legend-dot" style="background:#27AE60"></span> ≥ 80</span>
-            <span class="legend-item"><span class="legend-dot" style="background:#F39C12"></span> 50–79</span>
-            <span class="legend-item"><span class="legend-dot" style="background:#E74C3C"></span> &lt; 50</span>
-            <span class="legend-item"><span class="legend-dot" style="background:#9CA3AF"></span> нет данных</span>
+            <span class="legend-item"><span class="legend-dot" :style="{ background: SCORE_COLOR_GREEN_DARK }"></span> 100</span>
+            <span class="legend-item"><span class="legend-dot" :style="{ background: SCORE_COLOR_GREEN }"></span> 90–99</span>
+            <span class="legend-item"><span class="legend-dot" :style="{ background: SCORE_COLOR_YELLOW }"></span> 76–89</span>
+            <span class="legend-item"><span class="legend-dot" :style="{ background: SCORE_COLOR_ORANGE }"></span> 61–75</span>
+            <span class="legend-item"><span class="legend-dot" :style="{ background: SCORE_COLOR_RED }"></span> ≤ 60</span>
+            <span class="legend-item"><span class="legend-dot" :style="{ background: SCORE_COLOR_NO_DATA }"></span> нет данных</span>
           </span>
-          <span class="map-legend__hint">Заливка областей на карте — по тем же порогам, что и цвет «Итого» в таблице.</span>
+          <span class="map-legend__hint">Заливка карты, цвет «Итого» и итог КГД — по одной шкале (как в эталонном Excel).</span>
         </div>
 
         <div id="kz-map" class="echarts-map" :class="{ hidden: loading }"></div>
@@ -349,7 +360,7 @@ function goToRegion(code) {
 }
 
 .kgd-bar__score {
-  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .dashboard__body {

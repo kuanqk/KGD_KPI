@@ -4,6 +4,8 @@
  */
 import * as echarts from 'echarts'
 
+import { regionFillColor, scoreBandColor } from './kpiScoreColors.js'
+
 /** Код региона (как в API) → slug класса highcharts-name-* в SVG */
 export const REGION_CODE_TO_SLUG = {
   '03xx': 'акмолинская',
@@ -47,14 +49,7 @@ export function processKzSvg(svgText) {
   return processed
 }
 
-/** Заливка области по тем же порогам, что легенда над картой и колонка «Итого». */
-export function regionFillColor(score, hasData) {
-  if (!hasData || score == null || Number.isNaN(Number(score))) return '#9CA3AF'
-  const n = Number(score)
-  if (n >= 80) return '#27AE60'
-  if (n >= 50) return '#F39C12'
-  return '#E74C3C'
-}
+export { regionFillColor, scoreBandColor }
 
 export function buildMapData(summaries) {
   const byCode = {}
