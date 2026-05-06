@@ -17,6 +17,8 @@
 
 ## Сервисный слой
 
+**Зафиксированный маппинг полей и SQL:** см. [etl_kgd_gold_vitrines.md](../sprints/etl_kgd_gold_vitrines.md).
+
 ### DataNormalizer (`services/normalizer.py`)
 
 ```python
@@ -28,7 +30,7 @@ active = normalizer.normalize_active_inspection(raw_row)
 appeal = normalizer.normalize_appeal(raw_row)
 ```
 
-**Все условные поля помечены комментарием `# Заменить в Спринте 18`.**
+**Часть полей всё ещё условные** (обжалования KPI 6 и пр.) — см. комментарии в коде и `business/data_sources.md`.
 
 ### KGDImporter (`services/importer.py`)
 
@@ -40,11 +42,9 @@ importer.run()
 # → записи в CompletedInspection / ActiveInspection / AppealDecision
 ```
 
-**`_fetch_from_kgd_db()`** — сейчас заглушка с тестовыми данными.
-В Спринте 18 заменить на реальное подключение через `psycopg2`:
-```python
-# KGD_DB_HOST, KGD_DB_PORT, KGD_DB_NAME, KGD_DB_USER, KGD_DB_PASSWORD из .env
-```
+**`_fetch_from_kgd_db()`** — если задан `KGD_DB_HOST`, выполняется SQL к витринам `audit_kpi_data_gold` (`completed_acts`, `ongoing_acts`, `act_collected_amount`); иначе используются тестовые заглушки (CI, локальный dev без доступа к КГД).
+
+Переменные: `KGD_DB_HOST`, `KGD_DB_PORT`, `KGD_DB_NAME`, `KGD_DB_USER`, `KGD_DB_PASSWORD` в `.env`.
 
 ---
 
@@ -82,11 +82,11 @@ results = engine.calculate_all()
 
 ---
 
-## Спринт 18 — что менять здесь
+## Доработки ETL (после сверки с Excel / новые витрины)
 
-1. `services/normalizer.py` — обновить маппинг полей
-2. `services/importer.py` — убрать заглушку в `_fetch_from_kgd_db()`, подключить реальную БД КГД
-3. Обновить таблицу условных полей в `business/data_sources.md`
+1. `services/normalizer.py` — правки маппинга при изменении выгрузки
+2. `services/importer.py` — период (`job.params`), при необходимости новые JOIN
+3. Таблицы в `business/data_sources.md` и чеклист в [etl_kgd_gold_vitrines.md](../sprints/etl_kgd_gold_vitrines.md)
 
 ---
 

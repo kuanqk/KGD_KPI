@@ -1,30 +1,32 @@
 """
-ETL нормализатор: маппинг реальных полей БД КГД → модели Django.
+ETL нормализатор: маппинг полей витрин БД КГД → модели Django.
 
 Маршрутизация источника по дате (data_sources.md):
   create_date < 09.07.2025  →  source = 'inis'
   create_date >= 09.07.2025 →  source = 'isna'
 
-Реальные поля БД КГД (Спринт 18, docs/business/data_sources.md):
+Витрины (схема audit_kpi_data_gold в БД isna_audit, Алихан 06.05.2026):
 
-  CompletedInspection:
-    region_code      ← SQL alias для: ri_tax_case.creator_tax_org_id → справочник ДГД → code_nk
-    de_department_id ← ri_tax_case.de_department_id (→ управление через UNA_DEPARTMENT_IDS)
-    form_type        ← SQL alias для: de_audit_form.name_ru  ⏳ нужен справочник форм
-    completed_date   ← SQL alias для: ri_tax_act_audit.approval_date  ⚠️ аномалия дублей
-    amount_assessed  ← ⏳ уточнить у Алихана (таблица/колонка сумм)
-    amount_collected ← ⏳ уточнить у Алихана
-    source_id        ← ri_tax_case.document_number (номер предписания)
+  CompletedInspection ← витрина completed_acts + act_collected_amount:
+    source_id        ← act_number (GROUP BY в SQL — одна строка на акт)
+    region_code      ← LEFT(code_nk, 2) || 'xx'  (e.g. '0601' → '06xx')
+    management       ← 'УНА' (витрина уже фильтрована по УНА)
+    form_type        ← '' (не предоставляется витриной)
+    completed_date   ← completion_date
+    amount_assessed  ← SUM(accrued + penalty + koap_fine + zan_fine - reduced)
+    amount_collected ← JOIN с act_collected_amount по act_number, SUM(collected_amount)
+                        методы 1 (платёжное поручение) и 2 (переплата) — оба в KPI;
+                        метод 3 (ДФНО) уже отсеян витриной
 
-  ActiveInspection:
-    region_code       ← SQL alias для: dgd_code (4-символьный)
-    de_department_id  ← ri_tax_case.de_department_id
-    prescription_date ← SQL alias для: delivery_case_date  ⚠️ бывает NULL
-    audit_reason_id   ← de_tax_payer_audit_reason_id  ⏳ нужны конкретные ID для исключений
-    source_id         ← ri_tax_case.document_number
+  ActiveInspection ← витрина ongoing_acts:
+    source_id         ← act_number
+    region_code       ← LEFT(code_nk, 2) || 'xx'
+    management        ← 'УНА' (витрина уже фильтрована)
+    prescription_date ← case_notif_delivery_date
+    is_counted        ← True (уголовные/прокурорские исключения уже сделаны в витрине)
 
   AppealDecision:
-    ⏳ таблица обжалований не предоставлена — всё поле-маппинги pending
+    ⏳ данные обжалований обсуждаются с МинФин (зашифрованные суммы)
 """
 
 import logging
@@ -44,7 +46,9 @@ _ISNA_START = date(2025, 7, 9)
 # Источник: old/sprint18/una_departments.csv (76 записей)
 # Состав: Отдел аудита №1–6, Управление аудита, Управление налогового аудита,
 #         Отдел ЭКНА, ЭКНА
-# ⚠️ Уточнить у Алихана: входит ли ЭКНА в расчёт KPI как УНА?
+#
+# ℹ️  Витрина audit_kpi_data_gold уже фильтрована по УНА —
+#     _resolve_management() используется только при прямых RAW-запросах к КГД.
 # ---------------------------------------------------------------------------
 UNA_DEPARTMENT_IDS: frozenset[int] = frozenset({
     4, 10, 14, 61, 66, 67, 83, 84, 88, 89, 98, 99,
@@ -73,6 +77,25 @@ _EXCLUDED_AUDIT_REASON_KEYWORDS = (
     'органов прокуратуры',
     'органа прокуратуры',
 )
+
+
+def _parse_amount(value) -> int:
+    """
+    Converts a numeric value (int, float, or string) to int tenge.
+
+    Handles amounts that may arrive as formatted strings, e.g. '4 404 945' or '2 706,93'.
+    Vitrine normalises amounts to numeric types in the DB, but string values may appear
+    when reading raw XML exports or running unit tests.
+    """
+    if value is None:
+        return 0
+    if isinstance(value, (int, float)):
+        return int(value)
+    cleaned = str(value).replace('\xa0', '').replace(' ', '').replace(',', '.')
+    try:
+        return int(float(cleaned))
+    except (ValueError, TypeError):
+        return 0
 
 
 def _parse_date(value) -> date | None:
@@ -140,28 +163,27 @@ class DataNormalizer:
 
     def normalize_completed_inspection(self, raw_row: dict) -> CompletedInspection:
         """
-        Нормализует строку завершённой проверки (ИНИС/ИСНА).
+        Нормализует строку завершённой проверки.
 
-        Ожидаемые ключи raw_row (реальные поля → SQL алиасы):
-          source_id        ← ri_tax_case.document_number
-          region_code      ← справочник_ДГД.code_nk (4 символа, e.g. '6001')
-          de_department_id ← ri_tax_case.de_department_id  (→ resolves management)
-          form_type        ← de_audit_form.name_ru  ⏳ нужен справочник форм
-          completed_date   ← ri_tax_act_audit.approval_date  ⚠️ аномалия дублей
-          amount_assessed  ← ⏳ уточнить у Алихана
-          amount_collected ← ⏳ уточнить у Алихана
-          is_counted       ← нет в БД КГД, False по умолчанию (проставляется вручную)
-          is_accepted      ← нет в БД КГД, False по умолчанию (проставляется вручную)
+        Ожидаемые ключи raw_row (витрина audit_kpi_data_gold.completed_acts):
+          source_id        ← act_number (уникальный ключ акта, GROUP BY в SQL)
+          region_code      ← LEFT(code_nk, 2) || 'xx'  (e.g. '06xx')
+          management       ← 'УНА' (или de_department_id для прямых RAW-запросов)
+          form_type        ← '' (отсутствует в витрине — не нужен в KPI)
+          completed_date   ← completion_date
+          amount_assessed  ← SUM(accrued + penalty + koap_fine + zan_fine - reduced)
+          amount_collected ← SUM(collected_amount) из act_collected_amount (0 если нет)
+          is_counted       ← нет в витрине, False по умолчанию (вручную оператором)
+          is_accepted      ← нет в витрине, False по умолчанию (вручную оператором)
         """
         completed_date = _parse_date(raw_row['completed_date'])
         source = _detect_source(completed_date)
         region = self._get_region(raw_row['region_code'])
 
-        # management: из de_department_id если есть, иначе из поля 'management' (заглушки)
         if 'de_department_id' in raw_row:
             management = _resolve_management(raw_row['de_department_id'])
         else:
-            management = raw_row.get('management', 'OTHER')
+            management = raw_row.get('management', 'УНА')
 
         return CompletedInspection(
             source=source,
@@ -171,8 +193,8 @@ class DataNormalizer:
             management=management,
             form_type=raw_row.get('form_type', ''),
             completed_date=completed_date,
-            amount_assessed=int(raw_row.get('amount_assessed', 0) or 0),
-            amount_collected=int(raw_row.get('amount_collected', 0) or 0),
+            amount_assessed=_parse_amount(raw_row.get('amount_assessed', 0)),
+            amount_collected=_parse_amount(raw_row.get('amount_collected', 0)),
             is_counted=bool(raw_row.get('is_counted', False)),
             is_accepted=bool(raw_row.get('is_accepted', False)),
             raw_data=raw_row,
@@ -182,14 +204,13 @@ class DataNormalizer:
         """
         Нормализует строку проводимой (активной) проверки.
 
-        Ожидаемые ключи raw_row (реальные поля → SQL алиасы):
-          source_id         ← ri_tax_case.document_number
-          region_code       ← справочник_ДГД.code_nk (4 символа)
-          de_department_id  ← ri_tax_case.de_department_id  (→ resolves management)
-          prescription_date ← ri_tax_case.delivery_case_date  ⚠️ бывает NULL
-          audit_reason_text ← de_tax_payer_audit_reason.name_ru  ⏳ временный ключевой поиск
-          case_type         ← de_tax_payer_audit_reason.name_ru (текст основания)
-          is_counted        ← вычисляется из audit_reason_text (не уголовное + не прокуратура)
+        Ожидаемые ключи raw_row (витрина audit_kpi_data_gold.ongoing_acts):
+          source_id         ← act_number (GROUP BY в SQL)
+          region_code       ← LEFT(code_nk, 2) || 'xx'
+          management        ← 'УНА' (витрина уже фильтрована)
+          prescription_date ← case_notif_delivery_date (может быть NULL)
+          case_type         ← '' (уголовные исключены витриной, текст не передаётся)
+          is_counted        ← True по умолчанию (исключения сделаны в витрине)
         """
         prescription_date_raw = raw_row.get('prescription_date')
         prescription_date = _parse_date(prescription_date_raw)
@@ -236,7 +257,7 @@ class DataNormalizer:
         """
         Нормализует строку обжалования (отменённого акта).
 
-        ⏳ Таблица обжалований в БД КГД не предоставлена (Спринт 18).
+        ⏳ Таблица обжалований в БД КГД не предоставлена (см. docs/sprints/etl_kgd_gold_vitrines.md).
         Текущие ключи — из заглушки. Обновить после получения schema от Алихана.
 
         Ожидаемые ключи raw_row:

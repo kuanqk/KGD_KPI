@@ -29,7 +29,7 @@
 | Работа с API | `docs/architecture/api.md` + `docs/apps/[нужный].md` |
 | Работа с Docker | `docs/infrastructure/docker.md` |
 | Новый спринт (общий) | `docs/README.md` + `docs/dev/conventions.md` |
-| Спринт 18 (реальные данные) | `docs/apps/etl.md` + `docs/business/data_sources.md` |
+| ETL из витрин КГД | `docs/sprints/etl_kgd_gold_vitrines.md` + `docs/apps/etl.md` + `docs/business/data_sources.md` |
 
 ---
 
@@ -88,16 +88,14 @@ RLS: [нужен / не нужен]
 Не запускай команды. Только создай/измени файлы.
 ```
 
-### Спринт 18 (замена условных полей)
+### ETL из витрин КГД (`audit_kpi_data_gold`)
 
 ```
-Прочитай docs/apps/etl.md и docs/business/data_sources.md.
+Прочитай docs/sprints/etl_kgd_gold_vitrines.md, docs/apps/etl.md и docs/business/data_sources.md.
 
-Получена реальная schema БД КГД. Таблица маппинга:
-[вставить таблицу реальных полей]
+[Задача по импорту / правке SQL / маппингу после сверки с Excel]
 
-Обнови normalizer.py и importer.py.
-Обнови таблицу условных полей в docs/business/data_sources.md.
+Обнови при необходимости normalizer.py, importer.py и docs/business/data_sources.md.
 
 Не запускай команды. Только создай/измени файлы.
 ```

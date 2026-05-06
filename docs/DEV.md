@@ -166,7 +166,7 @@ class CompletedInspection(models.Model):
     source_id = models.CharField(max_length=100)  # ID записи в источнике
     import_job = models.ForeignKey(ImportJob, on_delete=models.CASCADE)
 
-    # Ключевые поля (условные имена — заменить после получения schema)
+    # Ключевые поля нормализованной модели (источник импорта — витрины КГД, см. docs/sprints/etl_kgd_gold_vitrines.md)
     region = models.ForeignKey('regions.Region', on_delete=models.PROTECT)
     management = models.CharField(max_length=20)         # УНА / УКН / УНН / ...
     form_type = models.CharField(max_length=50)          # ДФНО / обычная / ...
@@ -593,11 +593,13 @@ tests/
 
 ---
 
-## 9. Открытые вопросы (заполнить при получении доступа к БД КГД)
+## 9. Открытые вопросы (БД КГД и ETL)
 
-- [ ] Точные названия таблиц и полей в БД КГД
-- [ ] Маппинг условных полей (`amount_assessed`, `management`, `form_type`) на реальные
-- [ ] Формат кодирования ДФНО в БД
-- [ ] Наличие кода ДГД в таблице обжалований (Олжас добавит)
-- [ ] Credentials для подключения к БД КГД
-- [ ] Правила автоматического vs ручного проставления флагов
+Сводный документ по импорту из витрин: [sprints/etl_kgd_gold_vitrines.md](sprints/etl_kgd_gold_vitrines.md).
+
+- [x] Витрины `audit_kpi_data_gold` и SQL в `KGDImporter._fetch_from_kgd_db()` (при заданном `KGD_DB_HOST`)
+- [x] Маппинг полей завершённых и проводимых проверок в `DataNormalizer` + таблицы в `business/data_sources.md`
+- [ ] Сверка импорта с Excel на проде; правки периода и SQL при расхождениях
+- [ ] KPI 6 / обжалования — источник и суммы (обсуждается с МинФин)
+- [ ] Учётные данные и read-only права на объекты в боевой БД КГД (операционно)
+- [ ] Правила автоматического vs ручного проставления флагов `is_accepted` / `is_counted` (часть только в UI)

@@ -71,7 +71,7 @@ class CompletedInspection(models.Model):
         related_name='completed_inspections',
     )
 
-    # Ключевые поля (условные имена — заменить после получения schema от Олжаса)
+    # Ключевые поля нормализованной модели (источник — витрины КГД, см. docs/sprints/etl_kgd_gold_vitrines.md)
     region = models.ForeignKey(
         'regions.Region',
         on_delete=models.PROTECT,

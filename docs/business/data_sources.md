@@ -135,7 +135,38 @@ UNA_DEPARTMENT_IDS = {
 
 ---
 
-## Схема БД КГД — реальные таблицы (Спринт 18)
+## Витрины КГД (audit_kpi_data_gold, Алихан 06.05.2026)
+
+БД: `isna_audit`, схема: `audit_kpi_data_gold`.
+
+| Витрина | Назначение | act_type |
+|---------|-----------|---------|
+| `completed_acts` | Завершённые акты | 2 |
+| `ongoing_acts` | Проводимые акты | 1 |
+| `act_collected_amount` | Взыскания (временная, до исправления ИСНА IT-отделом КГД) | — |
+| `all_acts` | Оба типа вместе (для справки) | 1 + 2 |
+
+**Предобработка в витринах:** только УНА, без уголовных/прокурорских инициаторов, NULL→0, отрицательные суммы→положительные, даты в `yyyy-mm-dd`.
+
+**Маппинг `code_nk` → `region_code`:** `code_nk[:2] + 'xx'` (например `'0601'` → `'06xx'`).
+
+**Формула `amount_assessed`** (подтверждено Алиханом 06.05.2026):
+```
+SUM(accrued + penalty + koap_fine + zan_fine - reduced)  GROUP BY act_number
+```
+`reduced` вычитается в любом случае — из общей суммы, а не только из `accrued`.
+
+**Формула `amount_collected`:** `SUM(collected_amount)` из `act_collected_amount` по `act_number`.
+Методы 1 (платёжное поручение) и 2 (переплата) — **оба входят в KPI**.
+Метод 3 (ДФНО) уже исключён при построении витрины.
+
+**AppealDecision (KPI 6):** ⏳ обсуждается с МинФин — данные отменённых сумм зашифрованы.
+
+---
+
+## Схема БД КГД — реальные таблицы и импорт
+
+Подробности загрузки из витрин: [etl_kgd_gold_vitrines.md](../sprints/etl_kgd_gold_vitrines.md).
 
 ### Основные таблицы
 
@@ -179,7 +210,7 @@ UNA_DEPARTMENT_IDS = {
 
 ---
 
-## Условные поля БД (маппинг, Спринт 18)
+## Условные поля БД (маппинг и raw-схема КГД)
 
 ### CompletedInspection — завершённые проверки
 
@@ -188,7 +219,7 @@ UNA_DEPARTMENT_IDS = {
 | `region_code` | Код ДГД | `ri_tax_case` | `creator_tax_org_id` → справочник ДГД → `code_nk` | ✅ известно |
 | `management` | Управление (УНА/...) | `ri_tax_case` | `de_department_id IN (UNA_DEPARTMENT_IDS)` | ✅ известно |
 | `form_type` | Тип проверки | `ri_tax_case` | `de_audit_form_id` → `de_audit_form.name_ru` | ✅ справочник `old/260414/de_audit_form.xml` |
-| `amount_assessed` | Сумма доначислений (налог ± пеня по правилам заказчика) | `ri_tax_act_accrued_total` | `SUM(accrued)` по `ri_tax_act_id` и КБК; пеня — ⏳ правило (см. переписку Спринт 18) | ✅ налог по КБК сверен с Excel |
+| `amount_assessed` | Сумма доначислений (налог ± пеня по правилам заказчика) | `ri_tax_act_accrued_total` | `SUM(accrued)` по `ri_tax_act_id` и КБК; для витрины см. формулу в разделе «Витрины КГД» | ✅ налог по КБК сверен с Excel |
 | — | Учёт **`reduced`** (уменьшение по итогам проверки, **не** апелляция) | см. цепочку с `tax_accrued` / `penalty_accrued` | для согласования с KPI Excel: **факт доначисления по налогу ≈ `tax_accrued − reduced`** (подтверждено Алиханом и Олжасом, пример в `old/260417/msg11.txt`) | ✅ смысл поля |
 | `amount_collected` | Сумма взысканий | `ri_collected_amount_record` | `amount`; связь с актом: `re_tp_reg_card_id` → `re_tp_reg_card` ← `ri_tax_act_tax_payer` (`ri_tax_act_id`); фильтр ДФНО — см. ниже | ⚠️ таблица верная, **мало данных** (ввод в ИС с ~октября 2025); см. `old/260413/msg08.txt` |
 | `completed_date` | Дата завершения | `ri_tax_act_audit` | `approval_date` (MAX при дублях) | ⚠️ аномалия — уточнить |
@@ -225,17 +256,17 @@ UNA_DEPARTMENT_IDS = {
 
 ---
 
-## Статус анализа БД КГД (апрель 2026)
+## Статус анализа БД КГД (май 2026)
 
 | Вопрос | Статус |
 |---|---|
 | Структура предписания (`ri_tax_case`) | ✅ |
-| УНА через `de_department_id` (76 ID) | ✅ |
-| Код ДГД → `code_nk` | ✅ |
-| Дата вручения → `delivery_case_date` | ✅ |
-| Исключение уголовных дел (4 статьи) | ✅ путь, ⏳ конкретные ID |
-| Справочник форм проверки (`de_audit_form`) | ⏳ |
-| Суммы доначислений (`ri_tax_act_accrued_total`), поле **`reduced`** | ✅ сверка с Excel; **`tax_accrued − reduced`** для строки налога в KPI Excel (`old/260417/msg11.txt`) |
-| Взыскания (`ri_collected_amount_record` + JOIN к акту) | ⚠️ путь подтверждён, объём данных ограничен |
-| Финальный `approval_date` при дублях | ⏳ |
-| Таблица обжалований (KPI 6) | ⏳ |
+| УНА-фильтр | ✅ решён на уровне витрины (предобработка) |
+| Код ДГД → `code_nk[:2] + 'xx'` | ✅ подтверждено Алиханом 06.05.2026 |
+| Дата вручения предписания | ✅ `case_notif_delivery_date` в витрине |
+| Исключение уголовных/прокурорских | ✅ сделано при построении витрины |
+| Формула `amount_assessed` | ✅ `SUM(accrued+penalty+koap_fine+zan_fine−reduced)` по акту |
+| Взыскания (`amount_collected`) | ✅ витрина `act_collected_amount`, методы 1+2, ДФНО исключён |
+| Финальный `completion_date` при дублях | ✅ поле `completion_date` в витрине однозначно |
+| Справочник форм проверки (ДФНО) | ✅ не нужен — ДФНО исключено витриной |
+| Таблица обжалований (KPI 6) | ⏳ обсуждается с МинФин (зашифрованные суммы) |

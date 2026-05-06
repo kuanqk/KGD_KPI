@@ -154,7 +154,7 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-# Внешняя БД КГД (ETL, Спринт 18) — задаётся в docker-compose.yml или окружении
+# Внешняя БД КГД (ETL из витрин audit_kpi_data_gold) — задаётся в docker-compose.yml или окружении
 KGD_DB_HOST = config('KGD_DB_HOST', default='')
 KGD_DB_PORT = config('KGD_DB_PORT', default='5432')
 KGD_DB_NAME = config('KGD_DB_NAME', default='')

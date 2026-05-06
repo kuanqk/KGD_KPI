@@ -49,7 +49,7 @@
 | Файл | Содержание |
 |------|-----------|
 | [sprints/completed.md](sprints/completed.md) | Архив спринтов 0–17 |
-| [sprints/sprint_18.md](sprints/sprint_18.md) | Спринт 18 — замена условных полей на реальные |
+| [sprints/etl_kgd_gold_vitrines.md](sprints/etl_kgd_gold_vitrines.md) | ETL из витрин КГД (`audit_kpi_data_gold`, ИСНА) |
 
 ---
 
@@ -82,7 +82,7 @@ make superuser
 | Безопасность (MAC, RLS, JWT) | ✅ |
 | CI/CD (GitHub Actions) | ✅ |
 | Тестовые данные из Excel | ✅ |
-| Реальная БД КГД | ⏳ Спринт 18 — ждёт schema от Алихана |
+| Реальная БД КГД | ✅ Витрины и SQL — см. [etl_kgd_gold_vitrines.md](sprints/etl_kgd_gold_vitrines.md); валидация на проде |
 
 ---
 

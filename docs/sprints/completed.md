@@ -56,7 +56,7 @@
 
 **Что создано:**
 - `DataNormalizer` — маппинг полей, маршрутизация ИНИС/ИСНА по дате 09.07.2025
-- `KGDImporter` — run(), bulk_create (batch 500), заглушка `_fetch_from_kgd_db()`
+- `KGDImporter` — run(), bulk_create (batch 500); `_fetch_from_kgd_db()` — SQL к витринам `audit_kpi_data_gold` при `KGD_DB_HOST`, иначе заглушки для CI/dev (см. [etl_kgd_gold_vitrines.md](etl_kgd_gold_vitrines.md))
 - Celery task `run_import_job` (max_retries=3, exponential backoff)
 
 ---

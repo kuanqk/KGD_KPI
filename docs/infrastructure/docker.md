@@ -53,7 +53,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
 # Celery Beat
 CELERY_BEAT_HOUR=6     # час автоматического расчёта KPI (UTC)
 
-# БД КГД (заполнить при получении доступа — Спринт 18)
+# БД КГД / витрины (заполнить при доступе; см. docs/sprints/etl_kgd_gold_vitrines.md)
 KGD_DB_HOST=
 KGD_DB_PORT=5432
 KGD_DB_NAME=
