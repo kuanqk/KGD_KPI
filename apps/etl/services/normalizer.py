@@ -9,7 +9,7 @@ ETL нормализатор: маппинг полей витрин БД КГД
 
   CompletedInspection ← витрина completed_acts + act_collected_amount:
     source_id        ← act_number (GROUP BY в SQL — одна строка на акт)
-    region_code      ← LEFT(code_nk, 2) || 'xx'  (e.g. '0601' → '06xx')
+    region_code      ← LEFT(code_nk, 2) || 'xx'  (e.g. '0601' → '06xx'; в БД — только латинские 'x')
     management       ← 'УНА' (витрина уже фильтрована по УНА)
     form_type        ← '' (не предоставляется витриной)
     completed_date   ← completion_date
@@ -20,7 +20,7 @@ ETL нормализатор: маппинг полей витрин БД КГД
 
   ActiveInspection ← витрина ongoing_acts:
     source_id         ← act_number
-    region_code       ← LEFT(code_nk, 2) || 'xx'
+    region_code       ← LEFT(code_nk, 2) || 'xx' (латинские x в SQL; кириллические «х» нормализуются в коде)
     management        ← 'УНА' (витрина уже фильтрована)
     prescription_date ← case_notif_delivery_date
     is_counted        ← True (уголовные/прокурорские исключения уже сделаны в витрине)
@@ -30,7 +30,9 @@ ETL нормализатор: маппинг полей витрин БД КГД
 """
 
 import logging
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
+from uuid import UUID
 
 from apps.etl.models import ActiveInspection, AppealDecision, CompletedInspection, ImportJob
 from apps.regions.models import Region
@@ -98,10 +100,51 @@ def _parse_amount(value) -> int:
         return 0
 
 
+def _json_safe_raw(value):
+    """
+    Значения для JSONField raw_data: psycopg2 отдаёт date/datetime/Decimal —
+    стандартный json их не сериализует при INSERT в PostgreSQL.
+    """
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _json_safe_raw(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe_raw(v) for v in value]
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    return str(value)
+
+
+def _normalize_region_code(region_code) -> str:
+    """
+    Приводит код ДГД к виду в справочнике Region (латиница, нижний регистр для суффикса xx).
+
+    На практике встречается кириллическая буква «х» вместо латинской «x» (27хх vs 27xx),
+    пробелы по краям и «XX» в верхнем регистре — без этого Region.objects.get падает.
+    """
+    if region_code is None:
+        return ''
+    s = str(region_code).strip()
+    # Cyrillic small/capital ha (looks like Latin x)
+    s = s.replace('\u0445', 'x').replace('\u0425', 'x')
+    return s.lower()
+
+
 def _parse_date(value) -> date | None:
     """Приводит строку или date к объекту date. Возвращает None при пустом значении."""
     if value is None or value == '':
         return None
+    if isinstance(value, datetime):
+        return value.date()
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value)[:10])
@@ -197,7 +240,7 @@ class DataNormalizer:
             amount_collected=_parse_amount(raw_row.get('amount_collected', 0)),
             is_counted=bool(raw_row.get('is_counted', False)),
             is_accepted=bool(raw_row.get('is_accepted', False)),
-            raw_data=raw_row,
+            raw_data=_json_safe_raw(raw_row),
         )
 
     def normalize_active_inspection(self, raw_row: dict) -> ActiveInspection:
@@ -250,7 +293,7 @@ class DataNormalizer:
             case_type=audit_reason_text,
             prescription_date=prescription_date,
             is_counted=is_counted,
-            raw_data=raw_row,
+            raw_data=_json_safe_raw(raw_row),
         )
 
     def normalize_appeal(self, raw_row: dict) -> AppealDecision:
@@ -278,7 +321,7 @@ class DataNormalizer:
             is_counted=bool(raw_row.get('is_counted', False)),
             completion_date=_parse_date(raw_row['completion_date']),
             decision_date=_parse_date(raw_row['decision_date']),
-            raw_data=raw_row,
+            raw_data=_json_safe_raw(raw_row),
         )
 
     # ------------------------------------------------------------------
@@ -287,10 +330,14 @@ class DataNormalizer:
 
     def _get_region(self, region_code: str) -> Region:
         """Ищет регион по коду с кэшированием в рамках одного импорта."""
-        if region_code not in self._region_cache:
+        key = _normalize_region_code(region_code)
+        if not key:
+            logger.error('Region code empty after normalize: raw=%r', region_code)
+            raise ValueError('Код региона пустой или некорректный.')
+        if key not in self._region_cache:
             try:
-                self._region_cache[region_code] = Region.objects.get(code=region_code)
+                self._region_cache[key] = Region.objects.get(code=key)
             except Region.DoesNotExist:
-                logger.error('Region not found: code=%s', region_code)
-                raise ValueError(f'Регион с кодом "{region_code}" не найден в справочнике.')
-        return self._region_cache[region_code]
+                logger.error('Region not found: code=%r (normalized from %r)', key, region_code)
+                raise ValueError(f'Регион с кодом "{key}" не найден в справочнике.')
+        return self._region_cache[key]

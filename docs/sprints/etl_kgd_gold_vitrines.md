@@ -25,6 +25,8 @@
 
 ### `apps/etl/services/normalizer.py`
 
+- `_normalize_region_code()` — пробелы, суффикс `XX` → `xx`, кириллическое «х» → латинское `x` (совпадение со справочником `Region`)
+- `_json_safe_raw()` — для поля `raw_data`: `date`/`datetime`/`Decimal` из PostgreSQL → строки/JSON-совместимые типы (иначе ошибка при `bulk_create`)
 - `_parse_amount()` — безопасный парсинг сумм (числа / строки с пробелами / запятые)
 - `normalize_completed_inspection()` — принимает витринные поля: `source_id=act_number`, `region_code`, `management='УНА'`, `amount_assessed`, `amount_collected`
 - `normalize_active_inspection()` — принимает `prescription_date=case_notif_delivery_date`, `is_counted=True` по умолчанию
@@ -98,6 +100,20 @@ results = engine.calculate_all()
 ```
 
 **Зафиксировать расхождения** и согласовать с Олжасом.
+
+### Типичная ошибка: «Регион с кодом … не найден»
+
+1. **В приложении не загружен справочник ДГД.** Должно быть **21** строка в `regions_region` (20 областей/городов с кодами `03xx` … `71xx` и сводная `00xx`). Загрузка:
+
+   ```bash
+   docker compose exec web python manage.py loaddata apps/regions/fixtures/regions.json
+   ```
+
+   Либо полный сид из Makefile проекта (`make seed`), если он включает этот fixture.
+
+2. **Код региона с кириллическими «х»** (`27хх`) вместо латинских (`27xx`) — нормализатор приводит к виду справочника; если ошибка остаётся, проверьте пункт 1.
+
+3. **`TypeError: Object of type date is not JSON serializable`** при `bulk_create` — в `raw_data` попадали типы psycopg2 (`date`, `Decimal`). Исправлено: `normalizer._json_safe_raw()` перед сохранением; обновите `apps/etl/services/normalizer.py` на сервере и перезапустите `web`/`worker`.
 
 ### 3. AppealDecision (KPI 6)
 

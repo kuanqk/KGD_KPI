@@ -2,7 +2,10 @@
 Тесты ETL-сервисного слоя: DataNormalizer и KGDImporter.
 Используют mock-данные и фикстуры регионов — без реального подключения к БД КГД.
 """
+import json
 from datetime import date
+from decimal import Decimal
+
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -15,7 +18,12 @@ from apps.etl.models import (
     ImportJob,
 )
 from apps.etl.services.importer import KGDImporter
-from apps.etl.services.normalizer import DataNormalizer, _detect_source
+from apps.etl.services.normalizer import (
+    DataNormalizer,
+    _detect_source,
+    _json_safe_raw,
+    _normalize_region_code,
+)
 from apps.regions.models import Region
 
 
@@ -42,8 +50,37 @@ def make_job(source='inis', user=None):
 
 
 # ---------------------------------------------------------------------------
-# Source routing
+# Нормализация кода региона и маршрутизация источника (ИНИС/ИСНА)
 # ---------------------------------------------------------------------------
+
+class NormalizeRegionCodeTest(TestCase):
+    def test_latin_lowercase(self):
+        self.assertEqual(_normalize_region_code('27xx'), '27xx')
+
+    def test_cyrillic_ha_as_x(self):
+        self.assertEqual(_normalize_region_code('27\u0445\u0445'), '27xx')
+
+    def test_strip_and_uppercase_suffix(self):
+        self.assertEqual(_normalize_region_code(' 03XX '), '03xx')
+
+    def test_empty(self):
+        self.assertEqual(_normalize_region_code(None), '')
+        self.assertEqual(_normalize_region_code('   '), '')
+
+
+class JsonSafeRawTest(TestCase):
+    """raw_data (JSONField): psycopg2 отдаёт date/Decimal — должны сериализоваться в JSON."""
+
+    def test_dates_and_decimal_are_json_serializable(self):
+        row = {
+            'completed_date': date(2025, 1, 2),
+            'nested': {'amt': Decimal('2747.50')},
+        }
+        safe = _json_safe_raw(row)
+        json.dumps(safe)
+        self.assertEqual(safe['completed_date'], '2025-01-02')
+        self.assertEqual(safe['nested']['amt'], '2747.50')
+
 
 class SourceRoutingTest(TestCase):
     def test_before_cutoff_is_inis(self):
@@ -127,6 +164,13 @@ class NormalizerCompletedTest(TestCase):
         obj = self.norm.normalize_completed_inspection(row)
         self.assertEqual(obj.raw_data['source_id'], 'CI-001')
 
+    def test_raw_data_json_serializable_for_pg_types(self):
+        """Как из PostgreSQL: date в словаре — JSONField при сохранении не падает."""
+        row = self._row(source_id='CI-JPG')
+        row['create_date'] = date(2025, 6, 1)
+        obj = self.norm.normalize_completed_inspection(row)
+        json.dumps(obj.raw_data)
+
     def test_unknown_region_raises(self):
         with self.assertRaises(ValueError):
             self.norm.normalize_completed_inspection(self._row(region_code='UNKNOWN'))
@@ -136,6 +180,14 @@ class NormalizerCompletedTest(TestCase):
         self.norm.normalize_completed_inspection(self._row(source_id='CI-R1'))
         self.norm.normalize_completed_inspection(self._row(source_id='CI-R2'))
         self.assertIn('03xx', self.norm._region_cache)
+
+    def test_region_code_cyrillic_x_matches_fixture(self):
+        """Кириллическое «хх» в суффиксе должно резолвиться в тот же Region, что и «xx»."""
+        west = make_region('27xx', 22)
+        obj = self.norm.normalize_completed_inspection(
+            self._row(region_code='27\u0445\u0445', source_id='CI-ZKO')
+        )
+        self.assertEqual(obj.region, west)
 
     def test_date_as_date_object(self):
         obj = self.norm.normalize_completed_inspection(
